@@ -1,700 +1,268 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#064e3b">
-    <title>Jardín OS v6.0</title>
+import React, { useState } from 'react';
+import { 
+  Home, 
+  CheckSquare, 
+  Truck, 
+  MessageCircle, 
+  Menu, 
+  Plus, 
+  MapPin, 
+  Clock, 
+  AlertCircle 
+} from 'lucide-react';
 
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="manifest" href='data:application/manifest+json,{ "name": "Jardin OS", "short_name": "Jardin", "start_url": ".", "display": "standalone", "background_color": "#ffffff", "theme_color": "#064e3b", "orientation": "portrait", "icons": [{"src": "https://img.icons8.com/color/192/potted-plant.png", "sizes": "192x192", "type": "image/png"}] }' />
+// --- TIPOS (Simulando la Base de Datos) ---
+type TaskPriority = 'alta' | 'media' | 'baja';
+type TaskStatus = 'pendiente' | 'en_proceso' | 'completada';
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+interface Task {
+  id: string;
+  title: string;
+  location: string;
+  priority: TaskPriority;
+  status: TaskStatus;
+  time?: string;
+}
 
-    <style>
-        /* === CORE UX === */
-        body { 
-            font-family: 'Inter', sans-serif; 
-            -webkit-tap-highlight-color: transparent;
-            overscroll-behavior-y: none;
-            touch-action: manipulation;
-        }
+interface Delivery {
+  id: string;
+  client: string;
+  address: string;
+  status: 'en_ruta' | 'pendiente';
+}
 
-        /* Safe Areas para iPhone X+ */
-        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-        .pt-safe { padding-top: env(safe-area-inset-top); }
+// --- DATOS DE PRUEBA (MOCKS) ---
+const MOCK_TASKS: Task[] = [
+  { id: '1', title: 'Podar Rosales (Sector Norte)', location: 'Sucursal Centro', priority: 'alta', status: 'pendiente', time: '09:00 AM' },
+  { id: '2', title: 'Inventario de Macetas', location: 'Sucursal Río', priority: 'media', status: 'en_proceso', time: '11:30 AM' },
+  { id: '3', title: 'Riego de Interior', location: 'Sucursal Centro', priority: 'baja', status: 'completada' },
+];
 
-        /* Temas Dinámicos */
-        .theme-centro { --primary: #064e3b; --accent: #10b981; --bg-soft: #ecfdf5; }
-        .theme-ejemplares { --primary: #312e81; --accent: #6366f1; --bg-soft: #eef2ff; }
-        
-        /* Animaciones */
-        .transition-theme { transition: all 0.4s ease; }
-        .slide-up { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-        @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+const MOCK_DELIVERIES: Delivery[] = [
+  { id: '101', client: 'Restaurante El Muelle', address: 'Av. Costanera 1234', status: 'en_ruta' },
+  { id: '102', client: 'Sra. Mirta Legrand', address: 'Barrio Los Sauces, Lote 4', status: 'pendiente' },
+];
 
-        /* Componentes Específicos */
-        .font-hand { font-family: 'Kalam', cursive; }
-        
-        /* Botón de Grabación (Pulsación) */
-        .mic-active { 
-            background-color: #ef4444 !important; 
-            box-shadow: 0 0 0 10px rgba(239, 68, 68, 0.3);
-            transform: scale(1.1);
-        }
+// --- COMPONENTES UI (Átomos) ---
 
-        /* Scroll oculto pero funcional */
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+// Badge de Prioridad
+const PriorityBadge = ({ priority }: { priority: TaskPriority }) => {
+  const colors = {
+    alta: 'bg-red-100 text-red-700 border-red-200',
+    media: 'bg-orange-100 text-orange-700 border-orange-200',
+    baja: 'bg-green-100 text-green-700 border-green-200',
+  };
+  return (
+    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${colors[priority]}`}>
+      {priority.toUpperCase()}
+    </span>
+  );
+};
 
-        /* Bottom Nav Active State */
-        .nav-item.active { color: var(--primary); transform: translateY(-2px); }
-        .nav-item.active i { background: var(--bg-soft); padding: 8px; border-radius: 12px; }
-    </style>
-</head>
+// --- VISTAS (Páginas) ---
 
-<body id="app" class="bg-gray-50 h-[100dvh] flex flex-col theme-centro transition-theme overflow-hidden text-gray-800">
+// 1. DASHBOARD (Inicio)
+const DashboardView = () => {
+  const pendingHighPriority = MOCK_TASKS.filter(t => t.priority === 'alta' && t.status !== 'completada');
+  
+  return (
+    <div className="space-y-6 pb-24">
+      {/* Saludo y Resumen */}
+      <header className="px-4 pt-6">
+        <h1 className="text-2xl font-bold text-slate-800">Hola, Equipo 🌱</h1>
+        <p className="text-slate-500">Resumen operativo del día</p>
+      </header>
 
-    <header class="shadow-sm z-20 bg-white transition-colors duration-500 pt-safe">
-        <div class="px-4 py-3 flex justify-between items-center">
-            <button onclick="App.toggleBranch()" class="flex items-center gap-2 group">
-                <div class="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-lg transition-theme" style="background-color: var(--primary);">
-                    <i class="fas fa-leaf text-lg"></i>
+      {/* Widget: Alertas Prioritarias */}
+      <section className="px-4">
+        <div className="bg-red-50 border border-red-100 rounded-2xl p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertCircle className="w-5 h-5 text-red-600" />
+            <h2 className="font-semibold text-red-900">Atención Requerida</h2>
+          </div>
+          {pendingHighPriority.length > 0 ? (
+            <div className="space-y-2">
+              {pendingHighPriority.map(task => (
+                <div key={task.id} className="bg-white p-3 rounded-xl border border-red-100 flex justify-between items-center">
+                  <span className="text-sm font-medium text-slate-700">{task.title}</span>
+                  <span className="text-xs text-slate-400">{task.time}</span>
                 </div>
-                <div class="text-left">
-                    <h1 id="headerTitle" class="font-bold text-lg leading-none text-gray-800">Centro Tao</h1>
-                    <div class="flex items-center gap-1.5 mt-1">
-                        <span id="headerDate" class="text-xs text-gray-400 font-medium uppercase tracking-wider">Hoy</span>
-                        <div id="statusDot" class="w-2 h-2 rounded-full bg-red-500"></div>
-                    </div>
-                </div>
-            </button>
-
-            <div class="flex gap-2">
-                <button onclick="App.toggleWakeLock()" id="wakeLockBtn" class="w-9 h-9 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center active:bg-gray-200">
-                    <i class="fas fa-lightbulb"></i>
-                </button>
+              ))}
             </div>
+          ) : (
+            <p className="text-sm text-red-700">Todo bajo control por ahora.</p>
+          )}
         </div>
-    </header>
+      </section>
 
-    <main id="mainContainer" class="flex-grow relative overflow-hidden bg-gray-50">
-        
-        <section id="view-tasks" class="view-section h-full overflow-y-auto px-4 py-4 pb-24 scroll-smooth">
-            <div id="tasksList" class="space-y-3">
+      {/* Widget: Accesos Rápidos (Estadísticas) */}
+      <section className="px-4 grid grid-cols-2 gap-4">
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center py-6">
+          <span className="text-3xl font-bold text-emerald-600">{MOCK_TASKS.filter(t => t.status === 'pendiente').length}</span>
+          <span className="text-sm text-slate-500">Tareas Pendientes</span>
+        </div>
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center py-6">
+          <span className="text-3xl font-bold text-blue-600">{MOCK_DELIVERIES.filter(d => d.status === 'en_ruta').length}</span>
+          <span className="text-sm text-slate-500">En Reparto</span>
+        </div>
+      </section>
+
+      {/* Widget: Próximos Repartos */}
+      <section className="px-4">
+        <h3 className="font-bold text-slate-800 mb-3 ml-1">Próximos Repartos</h3>
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          {MOCK_DELIVERIES.map((delivery, idx) => (
+            <div key={delivery.id} className={`p-4 ${idx !== MOCK_DELIVERIES.length - 1 ? 'border-b border-slate-100' : ''}`}>
+              <div className="flex justify-between items-start">
+                <div>
+                  <h4 className="font-semibold text-slate-800">{delivery.client}</h4>
+                  <div className="flex items-center gap-1 text-slate-500 text-sm mt-1">
+                    <MapPin className="w-3 h-3" />
+                    <span>{delivery.address}</span>
+                  </div>
                 </div>
-            <button onclick="UI.openModal('modalTask')" class="fixed bottom-24 right-4 w-14 h-14 rounded-2xl shadow-xl text-white flex items-center justify-center text-2xl active:scale-90 transition-transform z-10" style="background-color: var(--primary);">
-                <i class="fas fa-plus"></i>
-            </button>
-        </section>
-
-        <section id="view-delivery" class="view-section hidden h-full overflow-y-auto px-4 py-4 pb-24">
-            <div class="bg-blue-50 border border-blue-100 p-3 rounded-xl mb-4 flex items-center gap-3">
-                <div class="bg-blue-500 text-white w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"><i class="fas fa-share-alt"></i></div>
-                <p class="text-xs text-blue-800 leading-tight">Lista unificada. Los repartos se sincronizan entre <b>Centro</b> y <b>Ejemplares</b>.</p>
+                {delivery.status === 'en_ruta' && (
+                  <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full font-medium">
+                    En Ruta
+                  </span>
+                )}
+              </div>
             </div>
-            <div id="deliveryList" class="space-y-3"></div>
-            <button onclick="UI.openModal('modalDelivery')" class="fixed bottom-24 right-4 w-14 h-14 rounded-2xl shadow-xl text-white flex items-center justify-center text-2xl active:scale-90 transition-transform z-10" style="background-color: var(--accent);">
-                <i class="fas fa-truck-medical"></i>
-            </button>
-        </section>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+};
 
-        <section id="view-notes" class="view-section hidden h-full overflow-y-auto px-4 py-4 pb-24">
-            <div id="notesList" class="grid grid-cols-1 gap-3"></div>
-            <button onclick="UI.openModal('modalNote')" class="fixed bottom-24 right-4 w-14 h-14 rounded-2xl shadow-xl text-white flex items-center justify-center text-2xl active:scale-90 transition-transform z-10" style="background-color: #f59e0b;">
-                <i class="fas fa-sticky-note"></i>
-            </button>
-        </section>
+// 2. TAREAS (Lista Operativa)
+const TasksView = () => {
+  return (
+    <div className="pb-24 px-4 pt-6 space-y-4">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-slate-800">Tareas</h1>
+        <button className="text-sm font-medium text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
+          Filtrar
+        </button>
+      </div>
 
-        <section id="view-stock" class="view-section hidden h-full flex flex-col items-center justify-center text-gray-400">
-            <i class="fas fa-boxes text-6xl mb-4 opacity-30"></i>
-            <h2 class="text-xl font-bold text-gray-500">Gestión de Stock</h2>
-            <p class="text-sm mt-2">Próximamente</p>
-        </section>
-
-        <section id="view-chat" class="view-section hidden h-full flex flex-col">
-            <div id="chatContainer" class="flex-grow overflow-y-auto p-4 space-y-3 pb-4"></div>
+      <div className="space-y-3">
+        {MOCK_TASKS.map(task => (
+          <div key={task.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 active:scale-[0.98] transition-transform">
+            <div className="flex justify-between items-start mb-2">
+              <PriorityBadge priority={task.priority} />
+              {task.time && (
+                <div className="flex items-center gap-1 text-xs text-slate-400">
+                  <Clock className="w-3 h-3" />
+                  {task.time}
+                </div>
+              )}
+            </div>
+            <h3 className="text-lg font-semibold text-slate-800 mb-1">{task.title}</h3>
+            <p className="text-sm text-slate-500 mb-4">{task.location}</p>
             
-            <div class="bg-white border-t border-gray-200 p-3 pb-safe z-20">
-                <div class="flex items-end gap-2">
-                    <button onclick="document.getElementById('imgInput').click()" class="p-3 text-gray-400 hover:text-gray-600">
-                        <i class="fas fa-camera text-xl"></i>
-                    </button>
-                    <input type="file" id="imgInput" hidden accept="image/*">
-                    
-                    <div class="flex-grow bg-gray-100 rounded-2xl flex items-center px-3 py-2">
-                        <input type="text" id="chatInput" placeholder="Mensaje..." class="bg-transparent w-full outline-none text-sm">
-                        <button onclick="App.sendText()" class="text-gray-500 hover:text-green-600 ml-2">
-                            <i class="fas fa-paper-plane"></i>
-                        </button>
-                    </div>
-
-                    <button id="btnPushToTalk" 
-                        class="w-12 h-12 rounded-full text-white shadow-lg flex items-center justify-center transition-all active:scale-95"
-                        style="background-color: var(--accent);">
-                        <i class="fas fa-microphone text-lg"></i>
-                    </button>
-                </div>
-                <div id="recordingOverlay" class="absolute top-[-40px] left-0 w-full flex justify-center opacity-0 pointer-events-none transition-opacity">
-                    <span class="bg-red-500 text-white text-xs font-bold px-4 py-1 rounded-full shadow-lg animate-pulse">GRABANDO...</span>
-                </div>
+            <div className="flex gap-2">
+              <button className="flex-1 bg-slate-50 text-slate-600 text-sm font-medium py-2 rounded-lg border border-slate-200">
+                Detalles
+              </button>
+              <button className="flex-1 bg-emerald-600 text-white text-sm font-medium py-2 rounded-lg shadow-sm shadow-emerald-200">
+                Completar
+              </button>
             </div>
-        </section>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
-    </main>
+// --- LAYOUT PRINCIPAL (Shell) ---
 
-    <nav class="bg-white border-t border-gray-100 pb-safe z-30">
-        <div class="flex justify-around items-center h-16">
-            <button onclick="UI.switchView('tasks')" class="nav-item active flex-1 flex flex-col items-center gap-1 text-gray-400 transition-all">
-                <i class="fas fa-tasks text-lg"></i>
-                <span class="text-[10px] font-bold">Tareas</span>
-            </button>
-            <button onclick="UI.switchView('delivery')" class="nav-item flex-1 flex flex-col items-center gap-1 text-gray-400 transition-all">
-                <i class="fas fa-truck text-lg"></i>
-                <span class="text-[10px] font-bold">Repartos</span>
-            </button>
-            <div class="w-px h-8 bg-gray-100"></div> <button onclick="UI.switchView('chat')" class="nav-item flex-1 flex flex-col items-center gap-1 text-gray-400 transition-all">
-                <i class="fas fa-broadcast-tower text-lg"></i>
-                <span class="text-[10px] font-bold">Radio</span>
-            </button>
-            <button onclick="UI.switchView('notes')" class="nav-item flex-1 flex flex-col items-center gap-1 text-gray-400 transition-all">
-                <i class="fas fa-sticky-note text-lg"></i>
-                <span class="text-[10px] font-bold">Notas</span>
-            </button>
+function App() {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'tasks' | 'deliveries' | 'chat'>('dashboard');
+
+  // Renderizado Condicional de Vistas
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'dashboard': return <DashboardView />;
+      case 'tasks': return <TasksView />;
+      case 'deliveries': return <div className="p-10 text-center text-slate-500">Módulo Repartos (En construcción)</div>;
+      case 'chat': return <div className="p-10 text-center text-slate-500">Módulo Chat/Radio (En construcción)</div>;
+      default: return <DashboardView />;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-emerald-100">
+      
+      {/* Área de Contenido Principal */}
+      <main className="max-w-md mx-auto min-h-screen bg-gray-50/50 relative">
+        {renderContent()}
+
+        {/* Floating Action Button (FAB) - Contextual */}
+        <div className="fixed bottom-24 right-4 z-20 md:right-[calc(50%-220px)]">
+          <button className="bg-emerald-600 text-white p-4 rounded-full shadow-lg shadow-emerald-600/30 hover:bg-emerald-700 transition-colors">
+            <Plus className="w-6 h-6" />
+          </button>
         </div>
-    </nav>
 
-    <div id="modalTask" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-none">
-        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" onclick="UI.closeModal('modalTask')"></div>
-        <div class="bg-white w-full sm:w-96 rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl transform transition-transform translate-y-full slide-up pointer-events-auto pb-safe">
-            <div class="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-6"></div>
-            <h3 class="text-xl font-bold mb-4 text-gray-800">Nueva Tarea</h3>
+        {/* Barra de Navegación Inferior */}
+        <nav className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 pb-safe z-30">
+          <div className="max-w-md mx-auto flex justify-around items-center h-16 px-2">
             
-            <div class="space-y-4">
-                <input id="taskDesc" type="text" placeholder="¿Qué hay que hacer?" class="w-full bg-gray-50 p-4 rounded-xl border border-gray-100 outline-none focus:border-green-500 font-medium">
-                
-                <div class="flex gap-2">
-                    <input id="taskAssignee" type="text" placeholder="Responsable" class="flex-1 bg-gray-50 p-3 rounded-xl border-none outline-none text-sm">
-                    <div class="flex items-center gap-2 bg-gray-50 px-3 rounded-xl">
-                        <label class="text-xs font-bold text-gray-500 uppercase">Cíclica</label>
-                        <input id="taskCyclic" type="checkbox" class="w-5 h-5 accent-green-600">
-                    </div>
-                </div>
+            <NavButton 
+              icon={<Home className="w-6 h-6" />} 
+              label="Inicio" 
+              isActive={activeTab === 'dashboard'} 
+              onClick={() => setActiveTab('dashboard')} 
+            />
+            
+            <NavButton 
+              icon={<CheckSquare className="w-6 h-6" />} 
+              label="Tareas" 
+              isActive={activeTab === 'tasks'} 
+              onClick={() => setActiveTab('tasks')} 
+            />
+            
+            <NavButton 
+              icon={<Truck className="w-6 h-6" />} 
+              label="Repartos" 
+              isActive={activeTab === 'deliveries'} 
+              onClick={() => setActiveTab('deliveries')} 
+            />
+            
+            <NavButton 
+              icon={<MessageCircle className="w-6 h-6" />} 
+              label="Chat" 
+              isActive={activeTab === 'chat'} 
+              onClick={() => setActiveTab('chat')} 
+            />
 
-                <div class="grid grid-cols-4 gap-2">
-                    <button onclick="UI.selectPriority('critical')" class="prio-btn p-2 rounded-lg bg-red-50 text-red-600 text-xs font-bold border border-transparent" data-p="critical">URG</button>
-                    <button onclick="UI.selectPriority('high')" class="prio-btn p-2 rounded-lg bg-orange-50 text-orange-600 text-xs font-bold border border-transparent" data-p="high">ALT</button>
-                    <button onclick="UI.selectPriority('medium')" class="prio-btn p-2 rounded-lg bg-blue-50 text-blue-600 text-xs font-bold border border-transparent" data-p="medium">MED</button>
-                    <button onclick="UI.selectPriority('low')" class="prio-btn p-2 rounded-lg bg-green-50 text-green-600 text-xs font-bold border border-green-500 ring-2 ring-green-500" data-p="low">BAJ</button>
-                </div>
+             <NavButton 
+              icon={<Menu className="w-6 h-6" />} 
+              label="Menú" 
+              isActive={false} 
+              onClick={() => alert('Configuración')} 
+            />
 
-                <button onclick="App.addTask()" class="w-full py-4 rounded-xl text-white font-bold shadow-lg mt-2 active:opacity-90" style="background-color: var(--primary);">Guardar Tarea</button>
-            </div>
-        </div>
+          </div>
+        </nav>
+      </main>
     </div>
+  );
+}
 
-    <div id="modalDelivery" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-none">
-        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="UI.closeModal('modalDelivery')"></div>
-        <div class="bg-white w-full sm:w-96 rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl slide-up pointer-events-auto pb-safe">
-            <h3 class="text-xl font-bold mb-4 text-gray-800">Nuevo Reparto</h3>
-            <div class="space-y-3">
-                <input id="delClient" type="text" placeholder="Nombre Cliente" class="w-full p-3 bg-gray-50 rounded-xl outline-none">
-                <input id="delPhone" type="tel" placeholder="Teléfono" class="w-full p-3 bg-gray-50 rounded-xl outline-none">
-                <textarea id="delItems" rows="2" placeholder="Detalle del pedido..." class="w-full p-3 bg-gray-50 rounded-xl outline-none resize-none"></textarea>
-                <div class="grid grid-cols-2 gap-2">
-                    <input id="delWhen" placeholder="Cuándo" class="p-3 bg-gray-50 rounded-xl outline-none text-sm">
-                    <input id="delWhere" placeholder="Dónde" class="p-3 bg-gray-50 rounded-xl outline-none text-sm">
-                </div>
-                <button onclick="App.addDelivery()" class="w-full py-4 rounded-xl text-white font-bold shadow-lg mt-2" style="background-color: var(--accent);">Agendar Reparto</button>
-            </div>
-        </div>
-    </div>
+// Subcomponente de Botón de Navegación
+const NavButton = ({ icon, label, isActive, onClick }: { icon: React.ReactNode, label: string, isActive: boolean, onClick: () => void }) => (
+  <button 
+    onClick={onClick}
+    className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${
+      isActive ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-600'
+    }`}
+  >
+    {icon}
+    <span className="text-[10px] font-medium">{label}</span>
+  </button>
+);
 
-    <div id="modalNote" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-none">
-        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="UI.closeModal('modalNote')"></div>
-        <div class="bg-yellow-50 w-full sm:w-96 rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl slide-up pointer-events-auto pb-safe">
-            <h3 class="text-xl font-bold mb-4 text-yellow-800">Nueva Nota</h3>
-            <select id="noteType" class="w-full p-3 mb-3 bg-white rounded-xl text-sm font-bold text-gray-600 outline-none">
-                <option value="internal">📌 Comunicación Interna</option>
-                <option value="billing">💰 Cola de Cobro</option>
-            </select>
-            <textarea id="noteContent" rows="4" class="w-full bg-white p-4 rounded-xl outline-none font-hand text-lg text-gray-700 shadow-inner" placeholder="Escribir nota..."></textarea>
-            <button onclick="App.addNote()" class="w-full py-4 rounded-xl text-yellow-900 bg-yellow-400 font-bold shadow-lg mt-4">Pegar Nota</button>
-        </div>
-    </div>
-
-    <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-2xl z-[60] flex items-center gap-3 transition-all duration-300 opacity-0 translate-y-[-20px] pointer-events-none">
-        <i class="fas fa-info-circle text-green-400"></i>
-        <span id="toastMsg" class="text-sm font-medium">Notificación</span>
-    </div>
-
-    <script type="module">
-        // === 1. IMPORTS & CONFIG ===
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, serverTimestamp, query, orderBy, limit, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyBzPiBCgiHoHSp24U7739fj9-htyTA8KiU",
-            authDomain: "app-jardin-v4.firebaseapp.com",
-            projectId: "app-jardin-v4",
-            storageBucket: "app-jardin-v4.firebasestorage.app",
-            messagingSenderId: "413324369604",
-            appId: "1:413324369604:web:f78e3f459725dd824e3391"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const storage = getStorage(app);
-        
-        enableIndexedDbPersistence(db).catch(err => console.log("Persistencia local:", err.code));
-
-        const APP_ID = 'jardin-os-v6';
-
-        // === 2. STATE MANAGEMENT ===
-        const State = {
-            branch: localStorage.getItem('tao_branch') || 'centro',
-            user: null,
-            view: 'tasks',
-            prio: 'low',
-            listeners: {},
-            mediaRecorder: null,
-            audioChunks: []
-        };
-
-        // === 3. UI CONTROLLER ===
-        window.UI = {
-            toast(msg, type='info') {
-                const el = document.getElementById('toast');
-                document.getElementById('toastMsg').innerText = msg;
-                el.classList.remove('opacity-0', 'translate-y-[-20px]');
-                setTimeout(() => el.classList.add('opacity-0', 'translate-y-[-20px]'), 3000);
-            },
-
-            switchView(viewId) {
-                // Nav Styles
-                document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-                const activeBtn = document.querySelector(`button[onclick="UI.switchView('${viewId}')"]`);
-                if(activeBtn) activeBtn.classList.add('active');
-
-                // View Visibility
-                document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
-                document.getElementById('view-' + viewId).classList.remove('hidden');
-                
-                State.view = viewId;
-                window.scrollTo(0,0);
-            },
-
-            openModal(id) {
-                const el = document.getElementById(id);
-                el.classList.remove('hidden');
-                setTimeout(() => el.querySelector('div[class*="transform"]').classList.remove('translate-y-full'), 10);
-            },
-
-            closeModal(id) {
-                const el = document.getElementById(id);
-                el.querySelector('div[class*="transform"]').classList.add('translate-y-full');
-                setTimeout(() => el.classList.add('hidden'), 300);
-            },
-
-            toggleTheme(branch) {
-                const body = document.body;
-                const title = document.getElementById('headerTitle');
-                if(branch === 'centro') {
-                    body.classList.replace('theme-ejemplares', 'theme-centro');
-                    title.innerText = "Centro Tao";
-                } else {
-                    body.classList.replace('theme-centro', 'theme-ejemplares');
-                    title.innerText = "Ejemplares Tao";
-                }
-            },
-
-            selectPriority(p) {
-                State.prio = p;
-                document.querySelectorAll('.prio-btn').forEach(b => {
-                    b.classList.remove('ring-2', 'ring-offset-1');
-                    if(b.dataset.p === p) b.classList.add('ring-2', 'ring-offset-1');
-                });
-            },
-
-            renderTasks(tasks) {
-                const container = document.getElementById('tasksList');
-                container.innerHTML = '';
-                if(tasks.length === 0) {
-                    container.innerHTML = `<div class="text-center py-10 opacity-40"><i class="fas fa-clipboard-check text-4xl mb-2 text-gray-300"></i><p>Todo limpio por hoy</p></div>`;
-                    return;
-                }
-
-                tasks.forEach(t => {
-                    const isDone = t.checkedTotal;
-                    const priorityColors = {
-                        critical: 'border-red-500 bg-red-50/50',
-                        high: 'border-orange-500 bg-orange-50/50',
-                        medium: 'border-blue-500 bg-blue-50/50',
-                        low: 'border-green-500 bg-white'
-                    };
-                    const styles = priorityColors[t.priority] || priorityColors.low;
-                    
-                    const html = `
-                    <div class="relative group overflow-hidden rounded-xl border-l-4 shadow-sm transition-all duration-300 ${styles} ${isDone ? 'opacity-50 grayscale' : ''}">
-                        <div class="p-4 flex gap-4 items-center">
-                            <div class="flex-grow">
-                                <div class="flex items-center gap-2 mb-1">
-                                    ${t.priority === 'critical' ? '<span class="text-[10px] font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded">URGENTE</span>' : ''}
-                                    ${t.isCyclic ? '<span class="text-[10px] font-bold bg-gray-200 text-gray-600 px-2 py-0.5 rounded flex items-center gap-1"><i class="fas fa-sync-alt"></i> CICLO</span>' : ''}
-                                    ${t.assignee ? `<span class="text-[10px] text-gray-400 font-medium"><i class="fas fa-user"></i> ${t.assignee}</span>` : ''}
-                                </div>
-                                <h3 class="text-gray-800 font-medium leading-tight ${isDone ? 'line-through' : ''}">${t.text}</h3>
-                            </div>
-                            
-                            <div class="flex items-center gap-3">
-                                ${!t.isCyclic ? `<button onclick="App.deleteItem('tasks', '${t.id}')" class="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-red-500"><i class="fas fa-trash"></i></button>` : ''}
-                                <button onclick="App.toggleTaskCheck('${t.id}', ${t.checkedDay})" class="w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${t.checkedDay ? 'bg-green-500 border-green-500 text-white' : 'border-gray-200 text-transparent hover:border-green-400'}">
-                                    <i class="fas fa-check"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>`;
-                    container.insertAdjacentHTML('beforeend', html);
-                });
-            },
-
-            renderDeliveries(list) {
-                const container = document.getElementById('deliveryList');
-                container.innerHTML = '';
-                list.forEach(d => {
-                    const isDone = d.status === 'delivered';
-                    const html = `
-                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 relative ${isDone ? 'opacity-60 bg-gray-50' : ''}">
-                        <div class="flex justify-between items-start mb-2">
-                            <h3 class="font-bold text-lg text-gray-800">${d.client}</h3>
-                            <button onclick="App.toggleDeliveryStatus('${d.id}', '${d.status}')" class="px-3 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase ${isDone ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">
-                                ${isDone ? 'Entregado' : 'Pendiente'}
-                            </button>
-                        </div>
-                        <div class="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg mb-3 font-medium">"${d.items}"</div>
-                        <div class="flex justify-between items-center text-xs text-gray-400">
-                            <div class="flex gap-3">
-                                <a href="tel:${d.phone}" class="flex items-center gap-1 hover:text-green-600"><i class="fas fa-phone"></i> Llamar</a>
-                                <a href="https://maps.google.com/?q=${d.where}" target="_blank" class="flex items-center gap-1 hover:text-blue-600"><i class="fas fa-map-marker-alt"></i> Mapa</a>
-                            </div>
-                            <button onclick="App.deleteItem('deliveries', '${d.id}', true)" class="text-gray-300 hover:text-red-500 px-2"><i class="fas fa-trash"></i></button>
-                        </div>
-                    </div>`;
-                    container.insertAdjacentHTML('beforeend', html);
-                });
-            },
-
-            renderNotes(notes) {
-                const container = document.getElementById('notesList');
-                container.innerHTML = '';
-                notes.forEach(n => {
-                    const isBill = n.type === 'billing';
-                    const html = `
-                    <div class="relative p-5 rounded-xl shadow-sm ${isBill ? 'bg-orange-50 border border-orange-100' : 'bg-yellow-50 border border-yellow-100'}">
-                        ${isBill ? '<div class="absolute -top-2 -left-2 bg-orange-500 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">COBRAR</div>' : ''}
-                        <p class="font-hand text-lg text-gray-800 whitespace-pre-wrap leading-relaxed">${n.content}</p>
-                        <button onclick="App.deleteItem('notes', '${n.id}')" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 opacity-50"><i class="fas fa-times"></i></button>
-                    </div>`;
-                    container.insertAdjacentHTML('beforeend', html);
-                });
-            },
-
-            renderChat(messages) {
-                const container = document.getElementById('chatContainer');
-                
-                // Diff simple: Solo añadir nuevos si no están. Para este demo regeneramos para simplicidad, 
-                // en prod usar docChanges().
-                container.innerHTML = '<div class="text-center text-xs text-gray-300 py-4">Historial de Radio (Últimos 50)</div>';
-                
-                messages.forEach(msg => {
-                    const isMe = msg.sender === State.user?.uid;
-                    const date = msg.createdAt ? new Date(msg.createdAt.seconds * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '...';
-                    
-                    let content = '';
-                    if(msg.type === 'text') content = `<p>${msg.text}</p>`;
-                    if(msg.type === 'image') content = `<img src="${msg.url}" class="rounded-lg max-w-[200px] border border-gray-200" loading="lazy" onclick="window.open(this.src)">`;
-                    if(msg.type === 'audio') content = `<audio controls src="${msg.url}" class="h-8 w-[200px]"></audio>`;
-
-                    const html = `
-                    <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} mb-2">
-                        <div class="${isMe ? 'bg-green-100 text-gray-800' : 'bg-white border border-gray-200 text-gray-700'} rounded-2xl px-4 py-2 max-w-[85%] shadow-sm relative">
-                            ${content}
-                            <div class="text-[9px] text-right mt-1 opacity-40">${date}</div>
-                        </div>
-                    </div>`;
-                    container.insertAdjacentHTML('beforeend', html);
-                });
-                
-                // Auto scroll solo si estamos cerca del final
-                container.scrollTop = container.scrollHeight;
-            }
-        };
-
-        // === 4. CORE APP LOGIC ===
-        window.App = {
-            async init() {
-                // Fechas
-                document.getElementById('headerDate').innerText = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric' });
-                this.checkAutoReset();
-                UI.toggleTheme(State.branch);
-
-                // Auth
-                await signInAnonymously(auth);
-                onAuthStateChanged(auth, u => {
-                    if(u) {
-                        State.user = u;
-                        document.getElementById('statusDot').className = "w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]";
-                        this.subscribeData();
-                    }
-                });
-
-                // Listeners Globales
-                this.setupAudio();
-                this.setupImageUpload();
-            },
-
-            toggleBranch() {
-                State.branch = State.branch === 'centro' ? 'ejemplares' : 'centro';
-                localStorage.setItem('tao_branch', State.branch);
-                UI.toggleTheme(State.branch);
-                this.subscribeData(); // Reload data
-                UI.toast(`Cambiado a ${State.branch === 'centro' ? 'Centro' : 'Ejemplares'}`);
-            },
-
-            subscribeData() {
-                // Unsub anteriores
-                Object.values(State.listeners).forEach(unsub => unsub && unsub());
-
-                const branchPath = ['artifacts', APP_ID, 'branches', State.branch];
-                const sharedPath = ['artifacts', APP_ID, 'SHARED_DATA', 'deliveries'];
-
-                // 1. Tasks
-                State.listeners.tasks = onSnapshot(collection(db, ...branchPath, 'tasks'), snap => {
-                    let tasks = [];
-                    snap.forEach(d => tasks.push({id: d.id, ...d.data()}));
-                    // Sorting Logic: Priority > Created
-                    const prioMap = { critical: 0, high: 1, medium: 2, low: 3 };
-                    tasks.sort((a,b) => (prioMap[a.priority] || 3) - (prioMap[b.priority] || 3));
-                    UI.renderTasks(tasks);
-                });
-
-                // 2. Deliveries (Shared)
-                State.listeners.deliveries = onSnapshot(query(collection(db, ...sharedPath), orderBy('createdAt', 'desc')), snap => {
-                    let list = [];
-                    snap.forEach(d => list.push({id: d.id, ...d.data()}));
-                    UI.renderDeliveries(list);
-                });
-
-                // 3. Notes
-                State.listeners.notes = onSnapshot(query(collection(db, ...branchPath, 'notes'), orderBy('createdAt', 'desc')), snap => {
-                    let list = [];
-                    snap.forEach(d => list.push({id: d.id, ...d.data()}));
-                    UI.renderNotes(list);
-                });
-
-                // 4. Chat
-                State.listeners.chat = onSnapshot(query(collection(db, ...branchPath, 'chat'), orderBy('createdAt', 'asc'), limit(50)), snap => {
-                    let msgs = [];
-                    snap.forEach(d => msgs.push(d.data()));
-                    // Auto-play audio logic si es nuevo y no soy yo
-                    snap.docChanges().forEach(change => {
-                        if(change.type === 'added') {
-                            const data = change.doc.data();
-                            if(data.type === 'audio' && data.sender !== State.user.uid) {
-                                if(Date.now() - (data.createdAt?.toMillis() || 0) < 10000) {
-                                    new Audio(data.url).play().catch(e => console.log('Autoplay blocked'));
-                                }
-                            }
-                        }
-                    });
-                    UI.renderChat(msgs);
-                });
-            },
-
-            // --- CRUD Operations ---
-            async addTask() {
-                const text = document.getElementById('taskDesc').value;
-                if(!text) return;
-                
-                await addDoc(collection(db, 'artifacts', APP_ID, 'branches', State.branch, 'tasks'), {
-                    text,
-                    assignee: document.getElementById('taskAssignee').value,
-                    isCyclic: document.getElementById('taskCyclic').checked,
-                    priority: State.prio,
-                    checkedDay: false,
-                    checkedTotal: false,
-                    createdAt: serverTimestamp()
-                });
-                
-                UI.closeModal('modalTask');
-                document.getElementById('taskDesc').value = '';
-                UI.toast('Tarea guardada');
-            },
-
-            async toggleTaskCheck(id, currentDayVal) {
-                // Si es cliclica, solo toggle day. Si no, toggle total.
-                await updateDoc(doc(db, 'artifacts', APP_ID, 'branches', State.branch, 'tasks', id), {
-                    checkedDay: !currentDayVal,
-                    // Si no es cíclica, checkedDay también marca checkedTotal visualmente en UI por ahora, 
-                    // pero mantenemos la lógica original del usuario
-                    checkedTotal: !currentDayVal 
-                });
-            },
-
-            async addDelivery() {
-                const client = document.getElementById('delClient').value;
-                if(!client) return;
-                
-                await addDoc(collection(db, 'artifacts', APP_ID, 'SHARED_DATA', 'deliveries'), {
-                    client,
-                    phone: document.getElementById('delPhone').value,
-                    items: document.getElementById('delItems').value,
-                    when: document.getElementById('delWhen').value,
-                    where: document.getElementById('delWhere').value,
-                    status: 'pending',
-                    createdAt: serverTimestamp()
-                });
-                UI.closeModal('modalDelivery');
-                document.getElementById('delClient').value = '';
-                UI.toast('Reparto agendado');
-            },
-
-            async toggleDeliveryStatus(id, currentStatus) {
-                await updateDoc(doc(db, 'artifacts', APP_ID, 'SHARED_DATA', 'deliveries', id), {
-                    status: currentStatus === 'pending' ? 'delivered' : 'pending'
-                });
-            },
-
-            async addNote() {
-                const content = document.getElementById('noteContent').value;
-                if(!content) return;
-                await addDoc(collection(db, 'artifacts', APP_ID, 'branches', State.branch, 'notes'), {
-                    content,
-                    type: document.getElementById('noteType').value,
-                    createdAt: serverTimestamp()
-                });
-                UI.closeModal('modalNote');
-                document.getElementById('noteContent').value = '';
-            },
-
-            async deleteItem(coll, id, isShared = false) {
-                if(!confirm('¿Eliminar elemento?')) return;
-                const path = isShared 
-                    ? ['artifacts', APP_ID, 'SHARED_DATA', 'deliveries'] 
-                    : ['artifacts', APP_ID, 'branches', State.branch, coll];
-                await deleteDoc(doc(db, ...path, id));
-                UI.toast('Eliminado', 'info');
-            },
-
-            // --- Chat & Media ---
-            async sendText() {
-                const input = document.getElementById('chatInput');
-                if(!input.value.trim()) return;
-                await addDoc(collection(db, 'artifacts', APP_ID, 'branches', State.branch, 'chat'), {
-                    type: 'text', text: input.value, sender: State.user.uid, createdAt: serverTimestamp()
-                });
-                input.value = '';
-            },
-
-            setupImageUpload() {
-                document.getElementById('imgInput').addEventListener('change', async (e) => {
-                    const file = e.target.files[0];
-                    if(!file) return;
-                    UI.toast('Subiendo imagen...');
-                    const refImg = ref(storage, `images/${Date.now()}_${file.name}`);
-                    const snap = await uploadBytes(refImg, file);
-                    const url = await getDownloadURL(snap.ref);
-                    await addDoc(collection(db, 'artifacts', APP_ID, 'branches', State.branch, 'chat'), {
-                        type: 'image', url, sender: State.user.uid, createdAt: serverTimestamp()
-                    });
-                });
-            },
-
-            setupAudio() {
-                const btn = document.getElementById('btnPushToTalk');
-                
-                const start = async (e) => {
-                    e.preventDefault();
-                    if(State.mediaRecorder) return; // Already recording
-                    try {
-                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                        State.mediaRecorder = new MediaRecorder(stream);
-                        State.audioChunks = [];
-                        
-                        State.mediaRecorder.ondataavailable = e => State.audioChunks.push(e.data);
-                        State.mediaRecorder.onstop = async () => {
-                            const blob = new Blob(State.audioChunks, { type: 'audio/webm' });
-                            // Upload
-                            const refAud = ref(storage, `audios/${Date.now()}.webm`);
-                            const snap = await uploadBytes(refAud, blob);
-                            const url = await getDownloadURL(snap.ref);
-                            await addDoc(collection(db, 'artifacts', APP_ID, 'branches', State.branch, 'chat'), {
-                                type: 'audio', url, sender: State.user.uid, createdAt: serverTimestamp()
-                            });
-                        };
-
-                        State.mediaRecorder.start();
-                        btn.classList.add('mic-active');
-                        document.getElementById('recordingOverlay').style.opacity = '1';
-                        navigator.vibrate?.(100);
-                    } catch(err) {
-                        alert("Error micrófono: " + err.message);
-                    }
-                };
-
-                const stop = (e) => {
-                    e.preventDefault();
-                    if(State.mediaRecorder && State.mediaRecorder.state !== 'inactive') {
-                        State.mediaRecorder.stop();
-                        State.mediaRecorder = null;
-                        btn.classList.remove('mic-active');
-                        document.getElementById('recordingOverlay').style.opacity = '0';
-                        navigator.vibrate?.(50);
-                    }
-                };
-
-                // Mouse & Touch events for PTT
-                btn.addEventListener('mousedown', start);
-                btn.addEventListener('mouseup', stop);
-                btn.addEventListener('mouseleave', stop); // si saca el dedo del botón
-                btn.addEventListener('touchstart', start);
-                btn.addEventListener('touchend', stop);
-            },
-
-            // --- Utilities ---
-            async toggleWakeLock() {
-                if ('wakeLock' in navigator) {
-                    try {
-                        const wl = await navigator.wakeLock.request('screen');
-                        UI.toast('Pantalla siempre encendida');
-                        document.getElementById('wakeLockBtn').classList.add('bg-green-100', 'text-green-600');
-                    } catch(e) { UI.toast('Error WakeLock'); }
-                }
-            },
-
-            checkAutoReset() {
-                // Si cambia el día, reseteamos checkedDay de las tareas
-                const last = localStorage.getItem('tao_last_date');
-                const today = new Date().toDateString();
-                if(last !== today) {
-                    localStorage.setItem('tao_last_date', today);
-                    // Aquí iría una cloud function idealmente, pero en local podríamos iterar 
-                    // para limpiar checkedDay si es crítico. Por ahora solo actualizamos fecha UI.
-                }
-            }
-        };
-
-        // Start
-        App.init();
-        
-        // Expose to window for HTML onclicks
-        window.App = App;
-    </script>
-</body>
-</html>
+export default App;
