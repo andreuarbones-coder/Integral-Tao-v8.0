@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Home, 
   CheckSquare, 
@@ -8,10 +8,16 @@ import {
   Plus, 
   MapPin, 
   Clock, 
-  AlertCircle 
+  AlertCircle,
+  Search,
+  Filter,
+  Phone,
+  MoreVertical,
+  ChevronRight,
+  Leaf
 } from 'lucide-react';
 
-// --- TIPOS (Simulando la Base de Datos) ---
+// --- TIPOS (Simulando tu estructura de datos) ---
 type TaskPriority = 'alta' | 'media' | 'baja';
 type TaskStatus = 'pendiente' | 'en_proceso' | 'completada';
 
@@ -22,111 +28,142 @@ interface Task {
   priority: TaskPriority;
   status: TaskStatus;
   time?: string;
+  description?: string;
 }
 
 interface Delivery {
   id: string;
   client: string;
   address: string;
-  status: 'en_ruta' | 'pendiente';
+  status: 'en_ruta' | 'pendiente' | 'entregado';
+  items: string[];
 }
 
 // --- DATOS DE PRUEBA (MOCKS) ---
-const MOCK_TASKS: Task[] = [
-  { id: '1', title: 'Podar Rosales (Sector Norte)', location: 'Sucursal Centro', priority: 'alta', status: 'pendiente', time: '09:00 AM' },
-  { id: '2', title: 'Inventario de Macetas', location: 'Sucursal Río', priority: 'media', status: 'en_proceso', time: '11:30 AM' },
-  { id: '3', title: 'Riego de Interior', location: 'Sucursal Centro', priority: 'baja', status: 'completada' },
+// Estos datos simulan lo que vendría de Firebase
+const INITIAL_TASKS: Task[] = [
+  { id: '1', title: 'Podar Rosales (Sector Norte)', description: 'Cliente requiere poda estética antes del evento del sábado.', location: 'Sucursal Centro', priority: 'alta', status: 'pendiente', time: '09:00 AM' },
+  { id: '2', title: 'Inventario de Macetas', description: 'Contar stock de barro y plástico n12.', location: 'Sucursal Río', priority: 'media', status: 'en_proceso', time: '11:30 AM' },
+  { id: '3', title: 'Riego de Interior', description: 'Oficinas centrales, piso 2 y 3.', location: 'Sucursal Centro', priority: 'baja', status: 'completada', time: '08:00 AM' },
+  { id: '4', title: 'Fumigación Preventiva', description: 'Aplicar fungicida en sector orquídeas.', location: 'Vivero Principal', priority: 'alta', status: 'pendiente', time: '14:00 PM' },
 ];
 
-const MOCK_DELIVERIES: Delivery[] = [
-  { id: '101', client: 'Restaurante El Muelle', address: 'Av. Costanera 1234', status: 'en_ruta' },
-  { id: '102', client: 'Sra. Mirta Legrand', address: 'Barrio Los Sauces, Lote 4', status: 'pendiente' },
+const INITIAL_DELIVERIES: Delivery[] = [
+  { id: '101', client: 'Restaurante El Muelle', address: 'Av. Costanera 1234', status: 'en_ruta', items: ['2x Palmeras', '10x Sustrato 50L'] },
+  { id: '102', client: 'Sra. Mirta Legrand', address: 'Barrio Los Sauces, Lote 4', status: 'pendiente', items: ['1x Orquídea Phalaenopsis'] },
+  { id: '103', client: 'Hotel Alvear', address: 'Av. Alvear 1891', status: 'entregado', items: ['Arreglo Floral Lobby'] },
 ];
 
-// --- COMPONENTES UI (Átomos) ---
+// --- COMPONENTES UI (Átomos Reutilizables) ---
 
-// Badge de Prioridad
 const PriorityBadge = ({ priority }: { priority: TaskPriority }) => {
-  const colors = {
+  const styles = {
     alta: 'bg-red-100 text-red-700 border-red-200',
     media: 'bg-orange-100 text-orange-700 border-orange-200',
     baja: 'bg-green-100 text-green-700 border-green-200',
   };
   return (
-    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${colors[priority]}`}>
-      {priority.toUpperCase()}
+    <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full border ${styles[priority]}`}>
+      {priority}
+    </span>
+  );
+};
+
+const StatusBadge = ({ status }: { status: string }) => {
+   const styles: any = {
+    en_ruta: 'bg-blue-100 text-blue-700',
+    pendiente: 'bg-slate-100 text-slate-600',
+    entregado: 'bg-emerald-100 text-emerald-700',
+    completada: 'bg-emerald-100 text-emerald-700',
+    en_proceso: 'bg-amber-100 text-amber-700',
+  };
+  return (
+    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${styles[status] || 'bg-gray-100'}`}>
+      {status.replace('_', ' ')}
     </span>
   );
 };
 
 // --- VISTAS (Páginas) ---
 
-// 1. DASHBOARD (Inicio)
-const DashboardView = () => {
-  const pendingHighPriority = MOCK_TASKS.filter(t => t.priority === 'alta' && t.status !== 'completada');
+// 1. DASHBOARD
+const DashboardView = ({ tasks, deliveries }: { tasks: Task[], deliveries: Delivery[] }) => {
+  const pendingHighPriority = tasks.filter(t => t.priority === 'alta' && t.status !== 'completada');
   
   return (
-    <div className="space-y-6 pb-24">
-      {/* Saludo y Resumen */}
-      <header className="px-4 pt-6">
-        <h1 className="text-2xl font-bold text-slate-800">Hola, Equipo 🌱</h1>
-        <p className="text-slate-500">Resumen operativo del día</p>
+    <div className="space-y-6 pb-24 animate-in fade-in duration-500">
+      {/* Header */}
+      <header className="px-5 pt-8 flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+            <Leaf className="w-6 h-6 text-emerald-600 fill-emerald-600" />
+            JardinOS
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">Resumen del día</p>
+        </div>
+        <div className="w-10 h-10 bg-slate-200 rounded-full overflow-hidden border-2 border-white shadow-sm">
+          <img src="https://i.pravatar.cc/150?u=jardinos" alt="User" />
+        </div>
       </header>
 
-      {/* Widget: Alertas Prioritarias */}
-      <section className="px-4">
-        <div className="bg-red-50 border border-red-100 rounded-2xl p-4 shadow-sm">
-          <div className="flex items-center gap-2 mb-3">
-            <AlertCircle className="w-5 h-5 text-red-600" />
-            <h2 className="font-semibold text-red-900">Atención Requerida</h2>
-          </div>
-          {pendingHighPriority.length > 0 ? (
-            <div className="space-y-2">
-              {pendingHighPriority.map(task => (
-                <div key={task.id} className="bg-white p-3 rounded-xl border border-red-100 flex justify-between items-center">
-                  <span className="text-sm font-medium text-slate-700">{task.title}</span>
-                  <span className="text-xs text-slate-400">{task.time}</span>
+      {/* Alertas */}
+      {pendingHighPriority.length > 0 && (
+        <section className="px-4">
+          <div className="bg-red-50 border border-red-100 rounded-2xl p-4 shadow-sm relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-red-100 rounded-full -mr-10 -mt-10 opacity-50" />
+            <div className="flex items-center gap-2 mb-3 relative z-10">
+              <AlertCircle className="w-5 h-5 text-red-600" />
+              <h2 className="font-bold text-red-800 text-sm">Prioridad Alta ({pendingHighPriority.length})</h2>
+            </div>
+            <div className="space-y-2 relative z-10">
+              {pendingHighPriority.slice(0, 2).map(task => (
+                <div key={task.id} className="bg-white/80 backdrop-blur-sm p-3 rounded-xl border border-red-100 flex justify-between items-center shadow-sm">
+                  <span className="text-sm font-medium text-slate-800 truncate pr-2">{task.title}</span>
+                  <span className="text-xs text-slate-500 whitespace-nowrap">{task.time}</span>
                 </div>
               ))}
             </div>
-          ) : (
-            <p className="text-sm text-red-700">Todo bajo control por ahora.</p>
-          )}
+          </div>
+        </section>
+      )}
+
+      {/* KPI Cards */}
+      <section className="px-4 grid grid-cols-2 gap-3">
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center py-5">
+          <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center mb-2 text-emerald-600">
+            <CheckSquare className="w-5 h-5" />
+          </div>
+          <span className="text-2xl font-bold text-slate-800">{tasks.filter(t => t.status === 'pendiente').length}</span>
+          <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Pendientes</span>
+        </div>
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center py-5">
+          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mb-2 text-blue-600">
+            <Truck className="w-5 h-5" />
+          </div>
+          <span className="text-2xl font-bold text-slate-800">{deliveries.filter(d => d.status === 'en_ruta').length}</span>
+          <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">En Ruta</span>
         </div>
       </section>
 
-      {/* Widget: Accesos Rápidos (Estadísticas) */}
-      <section className="px-4 grid grid-cols-2 gap-4">
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center py-6">
-          <span className="text-3xl font-bold text-emerald-600">{MOCK_TASKS.filter(t => t.status === 'pendiente').length}</span>
-          <span className="text-sm text-slate-500">Tareas Pendientes</span>
-        </div>
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center py-6">
-          <span className="text-3xl font-bold text-blue-600">{MOCK_DELIVERIES.filter(d => d.status === 'en_ruta').length}</span>
-          <span className="text-sm text-slate-500">En Reparto</span>
-        </div>
-      </section>
-
-      {/* Widget: Próximos Repartos */}
+      {/* Próximos Repartos Mini-Lista */}
       <section className="px-4">
-        <h3 className="font-bold text-slate-800 mb-3 ml-1">Próximos Repartos</h3>
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-          {MOCK_DELIVERIES.map((delivery, idx) => (
-            <div key={delivery.id} className={`p-4 ${idx !== MOCK_DELIVERIES.length - 1 ? 'border-b border-slate-100' : ''}`}>
-              <div className="flex justify-between items-start">
-                <div>
-                  <h4 className="font-semibold text-slate-800">{delivery.client}</h4>
-                  <div className="flex items-center gap-1 text-slate-500 text-sm mt-1">
-                    <MapPin className="w-3 h-3" />
-                    <span>{delivery.address}</span>
-                  </div>
+        <div className="flex justify-between items-center mb-3 px-1">
+          <h3 className="font-bold text-slate-800">Próximos Repartos</h3>
+          <button className="text-emerald-600 text-xs font-bold">Ver todos</button>
+        </div>
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 divide-y divide-slate-50">
+          {deliveries.slice(0, 3).map((delivery) => (
+            <div key={delivery.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="bg-slate-100 p-2 rounded-lg text-slate-500">
+                  <MapPin className="w-5 h-5" />
                 </div>
-                {delivery.status === 'en_ruta' && (
-                  <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full font-medium">
-                    En Ruta
-                  </span>
-                )}
+                <div>
+                  <h4 className="font-semibold text-slate-800 text-sm">{delivery.client}</h4>
+                  <p className="text-slate-400 text-xs truncate max-w-[150px]">{delivery.address}</p>
+                </div>
               </div>
+              <ChevronRight className="w-4 h-4 text-slate-300" />
             </div>
           ))}
         </div>
@@ -135,39 +172,87 @@ const DashboardView = () => {
   );
 };
 
-// 2. TAREAS (Lista Operativa)
-const TasksView = () => {
+// 2. TAREAS
+const TasksView = ({ tasks, toggleTask }: { tasks: Task[], toggleTask: (id: string) => void }) => {
+  const [filter, setFilter] = useState<'todas' | 'mias' | 'urgentes'>('todas');
+
+  const filteredTasks = tasks.filter(t => {
+    if (filter === 'urgentes') return t.priority === 'alta';
+    // 'mias' sería filtrado por ID de usuario en app real
+    return true; 
+  });
+
   return (
-    <div className="pb-24 px-4 pt-6 space-y-4">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-slate-800">Tareas</h1>
-        <button className="text-sm font-medium text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
-          Filtrar
+    <div className="pb-24 pt-8 px-4 h-full flex flex-col animate-in slide-in-from-right-4 duration-300">
+      {/* Header Tasks */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-slate-800">Mis Tareas</h1>
+        <button className="p-2 bg-white border border-slate-200 rounded-full shadow-sm text-slate-600">
+          <Filter className="w-5 h-5" />
         </button>
       </div>
 
-      <div className="space-y-3">
-        {MOCK_TASKS.map(task => (
-          <div key={task.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 active:scale-[0.98] transition-transform">
-            <div className="flex justify-between items-start mb-2">
+      {/* Filters */}
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+        {['todas', 'mias', 'urgentes'].map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f as any)}
+            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+              filter === f 
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' 
+                : 'bg-white text-slate-600 border border-slate-200'
+            }`}
+          >
+            {f.charAt(0).toUpperCase() + f.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {/* Task List */}
+      <div className="space-y-4 overflow-y-auto pb-4">
+        {filteredTasks.map(task => (
+          <div 
+            key={task.id} 
+            className={`bg-white p-5 rounded-2xl shadow-sm border border-slate-100 transition-all ${
+              task.status === 'completada' ? 'opacity-60 grayscale' : ''
+            }`}
+          >
+            <div className="flex justify-between items-start mb-3">
               <PriorityBadge priority={task.priority} />
               {task.time && (
-                <div className="flex items-center gap-1 text-xs text-slate-400">
+                <div className="flex items-center gap-1 text-xs font-medium text-slate-400">
                   <Clock className="w-3 h-3" />
                   {task.time}
                 </div>
               )}
             </div>
-            <h3 className="text-lg font-semibold text-slate-800 mb-1">{task.title}</h3>
-            <p className="text-sm text-slate-500 mb-4">{task.location}</p>
             
-            <div className="flex gap-2">
-              <button className="flex-1 bg-slate-50 text-slate-600 text-sm font-medium py-2 rounded-lg border border-slate-200">
-                Detalles
-              </button>
-              <button className="flex-1 bg-emerald-600 text-white text-sm font-medium py-2 rounded-lg shadow-sm shadow-emerald-200">
-                Completar
-              </button>
+            <h3 className={`text-lg font-bold text-slate-800 mb-1 ${task.status === 'completada' ? 'line-through' : ''}`}>
+              {task.title}
+            </h3>
+            <p className="text-sm text-slate-500 mb-4 leading-relaxed">
+              {task.description}
+            </p>
+            
+            <div className="flex items-center justify-between border-t border-slate-50 pt-4 mt-2">
+              <div className="flex items-center gap-1 text-xs text-slate-400 font-medium">
+                <MapPin className="w-3 h-3" />
+                {task.location}
+              </div>
+
+              {task.status !== 'completada' ? (
+                <button 
+                  onClick={() => toggleTask(task.id)}
+                  className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-4 py-2 rounded-lg text-sm font-bold transition-colors"
+                >
+                  Completar
+                </button>
+              ) : (
+                <span className="text-emerald-600 text-sm font-bold flex items-center gap-1">
+                  <CheckSquare className="w-4 h-4" /> Listo
+                </span>
+              )}
             </div>
           </div>
         ))}
@@ -176,77 +261,148 @@ const TasksView = () => {
   );
 };
 
-// --- LAYOUT PRINCIPAL (Shell) ---
+// 3. REPARTOS (Placeholder avanzado)
+const DeliveriesView = ({ deliveries }: { deliveries: Delivery[] }) => {
+  return (
+    <div className="pb-24 pt-8 px-4 animate-in slide-in-from-right-4 duration-300">
+       <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-slate-800">Ruta de Reparto</h1>
+        <button className="text-emerald-600 font-semibold text-sm">Mapa</button>
+      </div>
 
-function App() {
+      <div className="space-y-4">
+        {deliveries.map((delivery, index) => (
+          <div key={delivery.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            {/* Cabecera de tarjeta */}
+            <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
+               <span className="text-xs font-bold text-slate-400">#{delivery.id}</span>
+               <StatusBadge status={delivery.status} />
+            </div>
+            
+            <div className="p-4">
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="font-bold text-slate-800 text-lg">{delivery.client}</h3>
+                <button className="bg-emerald-100 p-2 rounded-full text-emerald-700">
+                  <Phone className="w-4 h-4" />
+                </button>
+              </div>
+              
+              <div className="flex items-start gap-2 text-slate-500 text-sm mb-4">
+                <MapPin className="w-4 h-4 mt-0.5 shrink-0" />
+                <span>{delivery.address}</span>
+              </div>
+
+              <div className="bg-slate-50 rounded-lg p-3 text-sm text-slate-600">
+                <p className="font-semibold text-xs text-slate-400 mb-1 uppercase">Items:</p>
+                <ul className="list-disc list-inside">
+                  {delivery.items.map((item, i) => <li key={i}>{item}</li>)}
+                </ul>
+              </div>
+            </div>
+
+            {/* Acciones Rápidas */}
+            {delivery.status === 'en_ruta' && (
+              <div className="p-2 bg-blue-50 flex gap-2">
+                 <button className="flex-1 bg-white border border-blue-200 text-blue-700 py-2 rounded-lg text-sm font-bold shadow-sm">
+                   Ver Mapa
+                 </button>
+                 <button className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-bold shadow-sm">
+                   Confirmar Entrega
+                 </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// --- LAYOUT PRINCIPAL (SHELL) ---
+
+export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'tasks' | 'deliveries' | 'chat'>('dashboard');
+  const [tasks, setTasks] = useState(INITIAL_TASKS);
+  const [deliveries] = useState(INITIAL_DELIVERIES);
 
-  // Renderizado Condicional de Vistas
+  // Función para "Completar" tarea
+  const toggleTaskStatus = (id: string) => {
+    setTasks(prev => prev.map(t => 
+      t.id === id ? { ...t, status: t.status === 'completada' ? 'pendiente' : 'completada' } : t
+    ));
+  };
+
   const renderContent = () => {
     switch (activeTab) {
-      case 'dashboard': return <DashboardView />;
-      case 'tasks': return <TasksView />;
-      case 'deliveries': return <div className="p-10 text-center text-slate-500">Módulo Repartos (En construcción)</div>;
-      case 'chat': return <div className="p-10 text-center text-slate-500">Módulo Chat/Radio (En construcción)</div>;
-      default: return <DashboardView />;
+      case 'dashboard': return <DashboardView tasks={tasks} deliveries={deliveries} />;
+      case 'tasks': return <TasksView tasks={tasks} toggleTask={toggleTaskStatus} />;
+      case 'deliveries': return <DeliveriesView deliveries={deliveries} />;
+      case 'chat': return (
+        <div className="flex flex-col items-center justify-center h-full text-slate-400 p-8 text-center animate-in fade-in">
+          <MessageCircle className="w-16 h-16 mb-4 text-slate-200" />
+          <h2 className="text-xl font-bold text-slate-600">Centro de Mensajes</h2>
+          <p className="text-sm mt-2">Selecciona un canal para comenzar a comunicarte con la central.</p>
+        </div>
+      );
+      default: return null;
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-emerald-100">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-emerald-100 flex justify-center">
       
-      {/* Área de Contenido Principal */}
-      <main className="max-w-md mx-auto min-h-screen bg-gray-50/50 relative">
-        {renderContent()}
+      {/* Mobile Container Simulator */}
+      <main className="w-full max-w-[420px] bg-white min-h-screen shadow-2xl relative overflow-hidden flex flex-col">
+        
+        {/* Main Content Area */}
+        <div className="flex-1 overflow-y-auto scrollbar-hide bg-gradient-to-br from-slate-50 to-white">
+          {renderContent()}
+        </div>
 
         {/* Floating Action Button (FAB) - Contextual */}
-        <div className="fixed bottom-24 right-4 z-20 md:right-[calc(50%-220px)]">
-          <button className="bg-emerald-600 text-white p-4 rounded-full shadow-lg shadow-emerald-600/30 hover:bg-emerald-700 transition-colors">
+        <div className="absolute bottom-20 right-5 z-20">
+          <button className="bg-emerald-600 text-white p-4 rounded-2xl shadow-lg shadow-emerald-600/30 hover:scale-105 active:scale-95 transition-all flex items-center gap-2">
             <Plus className="w-6 h-6" />
+            {activeTab === 'tasks' && <span className="text-sm font-bold pr-1">Nueva</span>}
           </button>
         </div>
 
-        {/* Barra de Navegación Inferior */}
-        <nav className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 pb-safe z-30">
-          <div className="max-w-md mx-auto flex justify-around items-center h-16 px-2">
-            
+        {/* Bottom Navigation */}
+        <nav className="bg-white border-t border-slate-100 pb-safe pt-2 px-2 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.03)]">
+          <div className="flex justify-around items-center h-16">
             <NavButton 
               icon={<Home className="w-6 h-6" />} 
               label="Inicio" 
               isActive={activeTab === 'dashboard'} 
               onClick={() => setActiveTab('dashboard')} 
             />
-            
             <NavButton 
               icon={<CheckSquare className="w-6 h-6" />} 
               label="Tareas" 
               isActive={activeTab === 'tasks'} 
               onClick={() => setActiveTab('tasks')} 
             />
-            
             <NavButton 
               icon={<Truck className="w-6 h-6" />} 
               label="Repartos" 
               isActive={activeTab === 'deliveries'} 
               onClick={() => setActiveTab('deliveries')} 
             />
-            
             <NavButton 
               icon={<MessageCircle className="w-6 h-6" />} 
               label="Chat" 
               isActive={activeTab === 'chat'} 
               onClick={() => setActiveTab('chat')} 
             />
-
              <NavButton 
               icon={<Menu className="w-6 h-6" />} 
               label="Menú" 
               isActive={false} 
-              onClick={() => alert('Configuración')} 
+              onClick={() => {}} 
             />
-
           </div>
         </nav>
+
       </main>
     </div>
   );
@@ -256,13 +412,16 @@ function App() {
 const NavButton = ({ icon, label, isActive, onClick }: { icon: React.ReactNode, label: string, isActive: boolean, onClick: () => void }) => (
   <button 
     onClick={onClick}
-    className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${
-      isActive ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-600'
+    className={`group flex flex-col items-center justify-center w-full h-full space-y-1 transition-all duration-300 relative ${
+      isActive ? 'text-emerald-600 translate-y-[-2px]' : 'text-slate-400 hover:text-slate-600'
     }`}
   >
-    {icon}
-    <span className="text-[10px] font-medium">{label}</span>
+    {isActive && (
+      <span className="absolute -top-2 w-8 h-1 bg-emerald-600 rounded-full shadow-sm" />
+    )}
+    <div className={`transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-105'}`}>
+      {icon}
+    </div>
+    <span className={`text-[10px] font-bold ${isActive ? 'opacity-100' : 'opacity-80'}`}>{label}</span>
   </button>
 );
-
-export default App;
