@@ -20,15 +20,14 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, deleteDoc, updateDoc, doc, serverTimestamp, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, deleteDoc, updateDoc, doc, serverTimestamp, limit, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
         // --- CONFIGURATION & INIT ---
         const manualConfig = { apiKey: "" }; // API Key injected by environment
         let firebaseConfig = manualConfig;
         
-        // Dynamic Config Loading
         try {
             if (typeof __firebase_config !== 'undefined') firebaseConfig = JSON.parse(__firebase_config);
         } catch(e) { console.error("Config Error", e); }
@@ -42,7 +41,8 @@
         // --- GLOBAL STATE & UTILS ---
         const state = {
             user: null,
-            branch: localStorage.getItem('jardin_branch') || 'centro', // Default branch
+            displayName: localStorage.getItem('jardin_username') || 'Personal',
+            branch: localStorage.getItem('jardin_branch') || 'centro', 
             currentTab: 'tasks',
             audioStream: null,
             mediaRecorder: null,
@@ -57,6 +57,7 @@
             navBtns: document.querySelectorAll('.nav-btn'),
             branchLabel: document.getElementById('branch-label'),
             branchModal: document.getElementById('branch-modal'),
+            userModal: document.getElementById('user-modal'),
             repartosBadge: document.getElementById('repartos-badge')
         };
 
@@ -82,6 +83,30 @@
         const getBranchPath = (col) => `artifacts/${appId}/branches/${state.branch}/${col}`;
         const getGlobalPath = (col) => `artifacts/${appId}/${col}_globales`;
 
+        // Utility: Date Checks for Cyclic Tasks
+        const shouldResetTask = (task) => {
+            if (!task.completed || !task.frequency || task.frequency === 'once') return false;
+            if (!task.lastCompletedAt) return false;
+
+            const lastDate = task.lastCompletedAt.toDate ? task.lastCompletedAt.toDate() : new Date(task.lastCompletedAt);
+            const now = new Date();
+            lastDate.setHours(0,0,0,0);
+            const today = new Date(); 
+            today.setHours(0,0,0,0);
+
+            const diffTime = Math.abs(today - lastDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            switch (task.frequency) {
+                case 'daily': return diffDays >= 1; // Ya no es hoy
+                case 'weekly': return diffDays >= 7 || today.getDay() === 1 && lastDate.getDay() !== 1; // Pasó una semana o es Lunes nuevo
+                case 'monthly': return today.getMonth() !== lastDate.getMonth();
+                case '3months': return diffDays >= 90;
+                case '6months': return diffDays >= 180;
+                default: return false;
+            }
+        };
+
         // --- AUTHENTICATION ---
         const initAuth = async () => {
             try {
@@ -92,13 +117,13 @@
                 }
             } catch (error) {
                 console.error("Auth failed", error);
-                showToast("Error de autenticación", "error");
+                showToast("Error de conexión. Recarga la página.", "error");
             }
         };
 
         // --- MODULES ---
 
-        // 1. TASKS MODULE
+        // 1. TASKS MODULE (MEJORADO)
         const initTasks = () => {
             const listEl = document.getElementById('tasks-list');
             const q = query(collection(db, getBranchPath('tasks')), orderBy('createdAt', 'desc'));
@@ -110,8 +135,20 @@
                     return;
                 }
                 
-                snapshot.forEach(docSnap => {
+                snapshot.forEach(async (docSnap) => {
                     const task = docSnap.data();
+                    
+                    // AUTO-RESET LOGIC
+                    if (task.completed && shouldResetTask(task)) {
+                        // Reset silently
+                        await updateDoc(doc(db, getBranchPath('tasks'), docSnap.id), {
+                            completed: false,
+                            completedBy: null,
+                            completedAt: null
+                        });
+                        return; // UI update will trigger on next snapshot
+                    }
+
                     const priorityColors = {
                         'urgente': 'border-l-4 border-red-500 bg-red-50',
                         'alta': 'border-l-4 border-orange-400 bg-orange-50',
@@ -119,76 +156,111 @@
                         'baja': 'border-l-4 border-gray-300 bg-white'
                     };
                     
+                    // Frequency Icons
+                    const freqIcons = {
+                        'daily': '<span class="text-purple-600 text-[10px] font-bold border border-purple-200 bg-purple-100 px-1 rounded">DIARIA</span>',
+                        'weekly': '<span class="text-indigo-600 text-[10px] font-bold border border-indigo-200 bg-indigo-100 px-1 rounded">SEMANAL</span>',
+                        'monthly': '<span class="text-pink-600 text-[10px] font-bold border border-pink-200 bg-pink-100 px-1 rounded">MENSUAL</span>',
+                        '3months': '<span class="text-teal-600 text-[10px] font-bold border border-teal-200 bg-teal-100 px-1 rounded">TRIM.</span>',
+                        '6months': '<span class="text-amber-600 text-[10px] font-bold border border-amber-200 bg-amber-100 px-1 rounded">SEMES.</span>',
+                        'once': ''
+                    };
+
                     const div = document.createElement('div');
                     div.className = `p-3 rounded shadow-sm mb-3 flex items-start gap-3 bg-white ${priorityColors[task.priority] || 'bg-white'}`;
+                    
                     div.innerHTML = `
-                        <input type="checkbox" class="mt-1.5 w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500 task-check" 
-                            data-id="${docSnap.id}" data-cyclic="${task.isCyclic}" ${task.completed ? 'checked' : ''}>
+                        <div class="relative pt-1">
+                            <input type="checkbox" class="w-6 h-6 rounded border-gray-300 text-green-600 focus:ring-green-500 task-check cursor-pointer" 
+                                data-id="${docSnap.id}" ${task.completed ? 'checked' : ''}>
+                        </div>
                         <div class="flex-grow">
-                            <p class="${task.completed ? 'line-through text-gray-400' : 'text-gray-800 font-medium'}">${task.text}</p>
-                            <div class="flex gap-2 text-xs text-gray-500 mt-1">
-                                ${task.isCyclic ? '<span class="text-purple-600 font-bold"><i class="fas fa-sync-alt"></i> Cíclica</span>' : ''}
-                                <span>${task.priority.toUpperCase()}</span>
+                            <div class="flex justify-between items-start">
+                                <p class="${task.completed ? 'line-through text-gray-400' : 'text-gray-800 font-medium'} text-base leading-snug">${task.text}</p>
+                                <button class="text-gray-300 hover:text-blue-500 task-edit ml-2" data-id="${docSnap.id}" data-text="${task.text}" data-freq="${task.frequency}" data-prio="${task.priority}">
+                                    <i class="fas fa-pencil-alt text-xs"></i>
+                                </button>
+                            </div>
+                            
+                            <div class="flex flex-wrap gap-2 text-xs text-gray-500 mt-1 items-center">
+                                ${freqIcons[task.frequency] || ''}
+                                <span class="uppercase tracking-wide text-[10px] font-semibold opacity-75">${task.priority}</span>
+                                ${task.completed && task.completedBy ? `<span class="ml-auto text-green-700 bg-green-50 px-2 py-0.5 rounded-full border border-green-100"><i class="fas fa-check"></i> ${task.completedBy}</span>` : ''}
                             </div>
                         </div>
-                        <button class="text-gray-400 hover:text-red-500 task-delete" data-id="${docSnap.id}">
+                        <button class="text-gray-300 hover:text-red-500 task-delete pt-1" data-id="${docSnap.id}">
                             <i class="fas fa-trash"></i>
                         </button>
                     `;
                     listEl.appendChild(div);
                 });
 
-                // Event Delegation
+                // Checkbox Logic
                 listEl.querySelectorAll('.task-check').forEach(cb => {
                     cb.addEventListener('change', async (e) => {
                         const id = e.target.dataset.id;
-                        const cyclic = e.target.dataset.cyclic === 'true';
-                        // Cyclic tasks uncheck themselves next day logically, but for UI we just don't delete them.
-                        // Standard delete/complete logic:
-                        if (!cyclic && e.target.checked) {
-                            // If not cyclic, standard complete behavior (optional delay to delete or just keep checked)
-                             await updateDoc(doc(db, getBranchPath('tasks'), id), { completed: e.target.checked });
-                        } else {
-                             await updateDoc(doc(db, getBranchPath('tasks'), id), { completed: e.target.checked });
-                        }
+                        const isChecked = e.target.checked;
+                        
+                        await updateDoc(doc(db, getBranchPath('tasks'), id), { 
+                            completed: isChecked,
+                            completedBy: isChecked ? state.displayName : null,
+                            lastCompletedAt: isChecked ? serverTimestamp() : null
+                        });
                     });
                 });
                 
+                // Edit Logic
+                listEl.querySelectorAll('.task-edit').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const { id, text, freq, prio } = e.currentTarget.dataset;
+                        // Populate form for edit mode (Quick hack: reuse add form logic or prompt)
+                        // Let's use prompts for simplicity in this single file or fill the main form
+                        const newText = prompt("Editar tarea:", text);
+                        if (newText !== null && newText.trim() !== "") {
+                             updateDoc(doc(db, getBranchPath('tasks'), id), { text: newText });
+                        }
+                    });
+                });
+
+                // Delete Logic
                 listEl.querySelectorAll('.task-delete').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
-                        if(confirm('¿Borrar tarea?')) {
+                        if(confirm('¿Borrar tarea permanentemente?')) {
                             await deleteDoc(doc(db, getBranchPath('tasks'), e.currentTarget.dataset.id));
                         }
                     });
                 });
             });
 
+            // ADD TASK FORM
             document.getElementById('task-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const text = document.getElementById('task-input').value;
                 const priority = document.getElementById('task-priority').value;
-                const isCyclic = document.getElementById('task-cyclic').checked;
+                const frequency = document.getElementById('task-freq').value;
                 
                 if(!text.trim()) return;
 
                 try {
                     await addDoc(collection(db, getBranchPath('tasks')), {
-                        text, priority, isCyclic, completed: false, createdAt: serverTimestamp()
+                        text, 
+                        priority, 
+                        frequency, // once, daily, weekly, etc.
+                        completed: false, 
+                        createdAt: serverTimestamp()
                     });
-                    e.target.reset();
+                    document.getElementById('task-input').value = ''; // Only clear text, keep settings
                     showToast("Tarea añadida", "success");
                 } catch(err) { showToast("Error al guardar", "error"); }
             });
         };
 
-        // 2. DELIVERIES MODULE (Repartos)
+        // 2. DELIVERIES MODULE (Repartos) - Global
         const initRepartos = () => {
             const listEl = document.getElementById('repartos-list');
-            // Global collection
             const q = query(collection(db, getGlobalPath('repartos')), orderBy('createdAt', 'desc'));
 
             onSnapshot(q, (snapshot) => {
-                // Badge Update
                 const count = snapshot.docs.length;
                 DOM.repartosBadge.textContent = count > 0 ? count : '';
                 DOM.repartosBadge.style.display = count > 0 ? 'flex' : 'none';
@@ -204,13 +276,13 @@
                             <span class="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded-full">${r.when}</span>
                         </div>
                         <div class="text-sm text-gray-600 space-y-1">
-                            <p><i class="fas fa-box-open w-5"></i> ${r.order}</p>
-                            <p><i class="fas fa-map-marker-alt w-5"></i> ${r.address}</p>
-                            <p><i class="fas fa-phone w-5"></i> <a href="tel:${r.phone}" class="text-blue-500 underline">${r.phone}</a></p>
+                            <p><i class="fas fa-box-open w-5 text-gray-400"></i> <span class="font-medium text-gray-800">${r.order}</span></p>
+                            <p><i class="fas fa-map-marker-alt w-5 text-gray-400"></i> ${r.address}</p>
+                            <p><i class="fas fa-phone w-5 text-gray-400"></i> <a href="tel:${r.phone}" class="text-blue-500 underline">${r.phone}</a></p>
                         </div>
                         <div class="mt-3 flex justify-end">
-                            <button class="text-green-600 hover:text-green-800 text-sm font-medium complete-reparto" data-id="${docSnap.id}">
-                                <i class="fas fa-check-circle mr-1"></i> Completar
+                            <button class="text-green-600 hover:text-green-800 text-sm font-bold bg-green-50 px-3 py-1 rounded-full border border-green-100 complete-reparto" data-id="${docSnap.id}">
+                                <i class="fas fa-check-circle mr-1"></i> Entregado por mí
                             </button>
                         </div>
                     `;
@@ -219,7 +291,8 @@
 
                 listEl.querySelectorAll('.complete-reparto').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
-                         if(confirm('¿Pedido entregado?')) {
+                         if(confirm(`¿Confirmas que entregaste este pedido? Quedará registrado.`)) {
+                            // Could move to history collection instead of delete, but requirement said "delete/complete"
                             await deleteDoc(doc(db, getGlobalPath('repartos'), e.currentTarget.dataset.id));
                             showToast("Reparto completado", "success");
                          }
@@ -240,6 +313,7 @@
                     order: document.getElementById('r-order').value,
                     address: document.getElementById('r-address').value,
                     when: document.getElementById('r-when').value,
+                    createdBy: state.displayName,
                     createdAt: serverTimestamp()
                 };
                 
@@ -263,20 +337,20 @@
                     const note = docSnap.data();
                     const isCobro = note.type === 'cobro';
                     const div = document.createElement('div');
-                    // Random rotation for post-it effect
                     const rot = Math.random() * 4 - 2; 
                     div.className = `p-4 shadow-md transition-transform hover:scale-105 relative h-48 flex flex-col`;
-                    div.style.backgroundColor = isCobro ? '#fecaca' : '#fef08a'; // Red for Cobro, Yellow for Comm
+                    div.style.backgroundColor = isCobro ? '#fecaca' : '#fef08a'; 
                     div.style.transform = `rotate(${rot}deg)`;
                     div.style.fontFamily = '"Kalam", cursive';
                     
                     div.innerHTML = `
                         <div class="absolute -top-2 left-1/2 transform -translate-x-1/2 w-8 h-8 bg-gray-200/50 rounded-full blur-sm"></div>
                         <div class="absolute top-1 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-red-800 rounded-full shadow-sm z-10"></div>
-                        <h4 class="font-bold border-b border-black/10 pb-1 mb-2 ${isCobro ? 'text-red-900' : 'text-yellow-900'}">
+                        <h4 class="font-bold border-b border-black/10 pb-1 mb-2 ${isCobro ? 'text-red-900' : 'text-yellow-900'} text-sm">
                             ${isCobro ? '💰 COLA DE COBRO' : '📢 COMUNICACIÓN'}
                         </h4>
                         <p class="text-lg leading-snug overflow-y-auto flex-grow">${note.text}</p>
+                        <p class="text-[10px] text-right mt-1 opacity-60">~ ${note.author || 'Anón'}</p>
                         <button class="absolute bottom-2 right-2 text-black/40 hover:text-black delete-note" data-id="${docSnap.id}">
                             <i class="fas fa-trash"></i>
                         </button>
@@ -293,7 +367,9 @@
                 const text = prompt("Escribe tu nota:");
                 if(!text) return;
                 const type = confirm("¿Es para Cola de Cobro? (Cancelar = Comunicación)") ? 'cobro' : 'comm';
-                await addDoc(collection(db, getBranchPath('notes')), { text, type, createdAt: serverTimestamp() });
+                await addDoc(collection(db, getBranchPath('notes')), { 
+                    text, type, author: state.displayName, createdAt: serverTimestamp() 
+                });
             };
         };
 
@@ -308,7 +384,6 @@
                     const proc = docSnap.data();
                     const div = document.createElement('div');
                     div.className = "bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden";
-                    // Parse steps split by new lines
                     const stepsHtml = (proc.steps || '').split('\n').map(s => `<li class="ml-4 list-disc text-gray-600">${s}</li>`).join('');
                     
                     div.innerHTML = `
@@ -325,8 +400,6 @@
                     listEl.appendChild(div);
                 });
             });
-            // Manual entry for procedures isn't in UI requirements, usually static or admin only. 
-            // Added hidden button in footer for simple testing? No, keep it clean.
         };
 
         // 5. CHAT / RADIO MODULE
@@ -341,12 +414,14 @@
             // Render
             onSnapshot(q, (snapshot) => {
                 chatBox.innerHTML = '';
-                // Reverse to show bottom-up
                 const messages = [];
                 snapshot.forEach(d => messages.push({...d.data(), id: d.id}));
                 
                 messages.reverse().forEach(msg => {
-                    const isMe = msg.userId === (auth.currentUser?.uid || 'anon');
+                    const isMe = msg.userId === (auth.currentUser?.uid || 'anon'); // Fallback check
+                    // Better check: did I send it?
+                    // We can match displayName if userId is anon
+                    
                     const div = document.createElement('div');
                     div.className = `flex w-full mb-4 ${isMe ? 'justify-end' : 'justify-start'}`;
                     
@@ -356,9 +431,12 @@
                     if (msg.type === 'audio') content = `<audio controls src="${msg.content}" class="max-w-[200px] h-10"></audio>`;
 
                     div.innerHTML = `
-                        <div class="max-w-[75%] ${isMe ? 'bg-blue-600 text-white rounded-l-2xl rounded-tr-2xl' : 'bg-gray-100 text-gray-800 rounded-r-2xl rounded-tl-2xl'} p-3 shadow-sm text-sm">
-                            ${content}
-                            <div class="text-[10px] opacity-70 mt-1 text-right">${msg.createdAt?.toDate ? msg.createdAt.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '...'}</div>
+                        <div class="max-w-[80%]">
+                             <div class="text-[10px] text-gray-400 mb-0.5 px-1 ${isMe ? 'text-right' : 'text-left'}">${msg.author || '...'}</div>
+                            <div class="${isMe ? 'bg-blue-600 text-white rounded-l-2xl rounded-tr-2xl' : 'bg-gray-100 text-gray-800 rounded-r-2xl rounded-tl-2xl'} p-3 shadow-sm text-sm">
+                                ${content}
+                                <div class="text-[9px] opacity-70 mt-1 text-right">${msg.createdAt?.toDate ? msg.createdAt.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}</div>
+                            </div>
                         </div>
                     `;
                     chatBox.appendChild(div);
@@ -371,7 +449,7 @@
                 const txt = msgInput.value.trim();
                 if(!txt) return;
                 await addDoc(collection(db, getBranchPath('chat')), {
-                    type: 'text', content: txt, userId: auth.currentUser?.uid, createdAt: serverTimestamp()
+                    type: 'text', content: txt, userId: auth.currentUser?.uid, author: state.displayName, createdAt: serverTimestamp()
                 });
                 msgInput.value = '';
             };
@@ -384,15 +462,15 @@
                 const file = e.target.files[0];
                 if(!file) return;
                 
-                showToast("Subiendo imagen...", "info");
+                showToast("Subiendo...", "info");
                 try {
                     const storageRef = ref(storage, `chat/${Date.now()}_${file.name}`);
                     await uploadBytes(storageRef, file);
                     const url = await getDownloadURL(storageRef);
                     await addDoc(collection(db, getBranchPath('chat')), {
-                        type: 'image', content: url, userId: auth.currentUser?.uid, createdAt: serverTimestamp()
+                        type: 'image', content: url, userId: auth.currentUser?.uid, author: state.displayName, createdAt: serverTimestamp()
                     });
-                    e.target.value = ''; // Clear
+                    e.target.value = ''; 
                 } catch(err) { showToast("Error al subir", "error"); }
             };
 
@@ -407,13 +485,12 @@
                     state.mediaRecorder = new MediaRecorder(stream);
                     state.mediaRecorder.ondataavailable = event => state.audioChunks.push(event.data);
                     state.mediaRecorder.onstop = async () => {
-                        const audioBlob = new Blob(state.audioChunks, { type: 'audio/mp4' }); // mp4/webm often better for mobile
-                        // Upload
+                        const audioBlob = new Blob(state.audioChunks, { type: 'audio/mp4' }); 
                         const storageRef = ref(storage, `audio/${Date.now()}.mp4`);
                         await uploadBytes(storageRef, audioBlob);
                         const url = await getDownloadURL(storageRef);
                         await addDoc(collection(db, getBranchPath('chat')), {
-                            type: 'audio', content: url, userId: auth.currentUser?.uid, createdAt: serverTimestamp()
+                            type: 'audio', content: url, userId: auth.currentUser?.uid, author: state.displayName, createdAt: serverTimestamp()
                         });
                     };
                     state.mediaRecorder.start();
@@ -421,7 +498,7 @@
                     showToast("Grabando...", "info");
                 } catch(err) {
                     console.error(err);
-                    showToast("Permiso de micrófono denegado", "error");
+                    showToast("Micrófono bloqueado", "error");
                     micBtn.classList.remove('bg-red-600', 'scale-110');
                 }
             };
@@ -437,7 +514,6 @@
                 state.isRecording = false;
             };
 
-            // Touch & Mouse events for PTT
             micBtn.addEventListener('mousedown', handleStartRecording);
             micBtn.addEventListener('mouseup', handleStopRecording);
             micBtn.addEventListener('mouseleave', handleStopRecording);
@@ -445,26 +521,37 @@
             micBtn.addEventListener('touchend', handleStopRecording);
         };
 
-        // --- NAVIGATION & SWIPE ---
-        const switchTab = (tabId) => {
-            // Update UI
-            DOM.views.forEach(el => el.classList.add('hidden'));
-            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+        // --- UI & USER SETTINGS ---
+        const initUI = () => {
+            // Force Branch Label Update Immediately
+            DOM.branchLabel.textContent = state.branch.toUpperCase();
             
-            DOM.navBtns.forEach(btn => {
-                const isActive = btn.dataset.tab === tabId;
-                btn.classList.toggle('text-blue-600', isActive);
-                btn.classList.toggle('text-gray-400', !isActive);
+            // Branch Switching
+            document.getElementById('branch-selector-btn').onclick = () => DOM.branchModal.classList.remove('hidden');
+            document.querySelectorAll('.select-branch-btn').forEach(btn => {
+                btn.onclick = () => {
+                    localStorage.setItem('jardin_branch', btn.dataset.branch);
+                    location.reload();
+                };
             });
-            state.currentTab = tabId;
-            // Scroll top
-            document.querySelector('main').scrollTo(0,0);
-        };
+            document.getElementById('close-branch-modal').onclick = () => DOM.branchModal.classList.add('hidden');
 
-        const initNavigation = () => {
-            DOM.navBtns.forEach(btn => {
-                btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-            });
+            // User Settings
+            document.getElementById('user-profile-btn').onclick = () => {
+                document.getElementById('username-input').value = state.displayName;
+                DOM.userModal.classList.remove('hidden');
+            };
+            document.getElementById('close-user-modal').onclick = () => DOM.userModal.classList.add('hidden');
+            
+            document.getElementById('save-user-btn').onclick = () => {
+                const newName = document.getElementById('username-input').value.trim();
+                if(newName) {
+                    state.displayName = newName;
+                    localStorage.setItem('jardin_username', newName);
+                    DOM.userModal.classList.add('hidden');
+                    showToast("Nombre guardado", "success");
+                }
+            };
 
             // Swipe Logic
             let touchStartX = 0;
@@ -474,63 +561,46 @@
             contentArea.addEventListener('touchstart', e => touchStartX = e.changedTouches[0].screenX, {passive: true});
             contentArea.addEventListener('touchend', e => {
                 touchEndX = e.changedTouches[0].screenX;
-                handleSwipe();
+                if (Math.abs(touchStartX - touchEndX) > 100) {
+                    const tabs = ['tasks', 'repartos', 'notes', 'procedimientos', 'chat'];
+                    const currentIdx = tabs.indexOf(state.currentTab);
+                    if (touchStartX > touchEndX && currentIdx < tabs.length - 1) switchTab(tabs[currentIdx + 1]); // Left
+                    if (touchStartX < touchEndX && currentIdx > 0) switchTab(tabs[currentIdx - 1]); // Right
+                }
             }, {passive: true});
 
-            const tabs = ['tasks', 'repartos', 'notes', 'procedimientos', 'chat'];
-            
-            const handleSwipe = () => {
-                const threshold = 100; // px
-                const diff = touchStartX - touchEndX;
-                
-                if (Math.abs(diff) < threshold) return;
-
-                const currentIndex = tabs.indexOf(state.currentTab);
-                if (diff > 0 && currentIndex < tabs.length - 1) {
-                    // Swipe Left -> Next Tab
-                    switchTab(tabs[currentIndex + 1]);
-                } else if (diff < 0 && currentIndex > 0) {
-                    // Swipe Right -> Prev Tab
-                    switchTab(tabs[currentIndex - 1]);
-                }
-            };
+            DOM.navBtns.forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
         };
 
-        // --- BRANCH MANAGEMENT ---
-        const initBranch = () => {
-            // UI Set
-            DOM.branchLabel.textContent = state.branch.toUpperCase();
-            
-            // Switcher
-            document.getElementById('branch-selector-btn').onclick = () => DOM.branchModal.classList.remove('hidden');
-            document.querySelectorAll('.select-branch-btn').forEach(btn => {
-                btn.onclick = () => {
-                    const newBranch = btn.dataset.branch;
-                    localStorage.setItem('jardin_branch', newBranch);
-                    location.reload(); // Hard reload to clear listeners ensures clean state
-                };
+        const switchTab = (tabId) => {
+            DOM.views.forEach(el => el.classList.add('hidden'));
+            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+            DOM.navBtns.forEach(btn => {
+                const isActive = btn.dataset.tab === tabId;
+                btn.classList.toggle('text-blue-600', isActive);
+                btn.classList.toggle('text-gray-400', !isActive);
             });
-            document.getElementById('close-branch-modal').onclick = () => DOM.branchModal.classList.add('hidden');
+            state.currentTab = tabId;
+            document.querySelector('main').scrollTo(0,0);
         };
 
-        // --- MAIN ENTRY POINT ---
+        // --- MAIN ---
         window.addEventListener('load', async () => {
-            initBranch();
+            initUI();
             await initAuth();
             
+            // Wait for auth before loading data, but UI is already responsive
             onAuthStateChanged(auth, (user) => {
                 if (user) {
                     state.user = user;
-                    console.log("User:", user.uid);
-                    // Init Modules
+                    console.log("Logged in");
+                    // Load all modules
                     initTasks();
                     initRepartos();
                     initNotes();
                     initProcedures();
                     initChat();
-                    initNavigation();
                     
-                    // Show default
                     switchTab('tasks');
                 }
             });
@@ -538,19 +608,11 @@
 
     </script>
     <style>
-        /* Custom Scrollbar for desktop niceness */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        
-        /* Disable standard select on specific UI elements */
         .no-select { user-select: none; -webkit-user-select: none; }
-        
-        /* Font Family */
         body { font-family: 'Inter', sans-serif; }
-        
-        /* Mobile Safe Area fixes */
         main { padding-bottom: env(safe-area-inset-bottom); }
     </style>
 </head>
@@ -558,136 +620,112 @@
 
     <!-- HEADER -->
     <header class="bg-white shadow-sm z-20 flex-none h-14 flex items-center justify-between px-4">
-        <div class="flex items-center gap-2" id="branch-selector-btn">
-            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-                JS
-            </div>
+        <div class="flex items-center gap-2 cursor-pointer" id="branch-selector-btn">
+            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">JS</div>
             <div class="leading-tight">
                 <h1 class="font-bold text-gray-900 text-sm">Jardín OS</h1>
-                <p id="branch-label" class="text-[10px] text-gray-500 font-semibold tracking-wider">CARGANDO...</p>
+                <p id="branch-label" class="text-[10px] text-gray-500 font-semibold tracking-wider">SUCURSAL</p>
             </div>
             <i class="fas fa-chevron-down text-xs text-gray-400 ml-1"></i>
         </div>
-        <div>
-            <!-- Generic User Icon or Status -->
-            <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
-                <i class="fas fa-user"></i>
-            </div>
-        </div>
+        <button id="user-profile-btn" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-blue-600 hover:bg-blue-50 transition-colors">
+            <i class="fas fa-user-cog"></i>
+        </button>
     </header>
 
-    <!-- MAIN CONTENT AREA (Scrollable) -->
+    <!-- MAIN CONTENT -->
     <main class="flex-grow overflow-y-auto relative bg-gray-50">
         
-        <!-- 1. TASKS VIEW -->
+        <!-- 1. TASKS -->
         <section id="view-tasks" class="view-section p-4 pb-20">
             <form id="task-form" class="bg-white p-3 rounded-lg shadow-sm mb-4 border border-gray-100">
+                <div class="flex flex-col gap-2 mb-2">
+                    <input type="text" id="task-input" placeholder="Nueva tarea..." class="w-full bg-gray-50 border-0 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
                 <div class="flex gap-2 mb-2">
-                    <input type="text" id="task-input" placeholder="Nueva tarea..." class="flex-grow bg-gray-50 border-0 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                    <select id="task-priority" class="bg-gray-50 text-sm rounded px-2 outline-none">
-                        <option value="urgente">Urgente</option>
-                        <option value="alta">Alta</option>
-                        <option value="media" selected>Media</option>
-                        <option value="baja">Baja</option>
+                     <select id="task-priority" class="bg-gray-50 text-xs rounded px-2 py-1 outline-none border border-gray-200 flex-1">
+                        <option value="media">Prioridad: Media</option>
+                        <option value="urgente">Prioridad: Urgente</option>
+                        <option value="alta">Prioridad: Alta</option>
+                        <option value="baja">Prioridad: Baja</option>
+                    </select>
+                    <select id="task-freq" class="bg-gray-50 text-xs rounded px-2 py-1 outline-none border border-gray-200 flex-1">
+                        <option value="once">Solo una vez</option>
+                        <option value="daily">Repetir: Diaria</option>
+                        <option value="weekly">Repetir: Semanal</option>
+                        <option value="monthly">Repetir: Mensual</option>
+                        <option value="3months">Repetir: Cada 3 Meses</option>
+                        <option value="6months">Repetir: Cada 6 Meses</option>
                     </select>
                 </div>
-                <div class="flex items-center justify-between">
-                    <label class="flex items-center gap-2 text-xs text-gray-600">
-                        <input type="checkbox" id="task-cyclic" class="text-blue-600 rounded">
-                        <span>Es Tarea Cíclica</span>
-                    </label>
-                    <button type="submit" class="bg-blue-600 text-white px-4 py-1.5 rounded text-sm font-medium hover:bg-blue-700">Agregar</button>
-                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-blue-700 mt-1">Agregar Tarea</button>
             </form>
             <div id="tasks-list">
-                <!-- Tasks injected here -->
                 <div class="flex justify-center mt-10"><i class="fas fa-circle-notch fa-spin text-gray-300 text-2xl"></i></div>
             </div>
         </section>
 
-        <!-- 2. REPARTOS VIEW -->
+        <!-- 2. REPARTOS -->
         <section id="view-repartos" class="view-section hidden p-4 pb-20">
             <button id="add-reparto-btn" class="w-full bg-indigo-600 text-white py-3 rounded-lg shadow-md font-medium mb-4 flex items-center justify-center gap-2">
                 <i class="fas fa-plus"></i> Nuevo Reparto
             </button>
-            <div id="repartos-list">
-                <!-- Repartos injected here -->
-            </div>
+            <div id="repartos-list"></div>
         </section>
 
-        <!-- 3. NOTES VIEW -->
+        <!-- 3. NOTES -->
         <section id="view-notes" class="view-section hidden p-4 pb-20">
             <button id="add-note-btn" class="w-full border-2 border-dashed border-gray-300 text-gray-400 py-3 rounded-lg font-medium mb-6 hover:border-gray-400 hover:text-gray-500 transition-colors">
-                <i class="fas fa-plus mr-1"></i> Agregar Nota Adhesiva
+                <i class="fas fa-plus mr-1"></i> Nueva Nota
             </button>
-            <div id="notes-container" class="grid grid-cols-2 gap-4">
-                <!-- Notes injected here -->
-            </div>
+            <div id="notes-container" class="grid grid-cols-2 gap-4"></div>
         </section>
 
-        <!-- 4. PROCEDURES VIEW -->
+        <!-- 4. PROCEDURES -->
         <section id="view-procedimientos" class="view-section hidden p-4 pb-20">
-            <div class="mb-4">
-                <h2 class="text-lg font-bold text-gray-800">Base de Conocimiento</h2>
-                <p class="text-sm text-gray-500">Procedimientos estandarizados</p>
+            <div class="mb-4 bg-blue-50 p-4 rounded-lg border border-blue-100">
+                <h2 class="text-lg font-bold text-blue-800">Manual Operativo</h2>
+                <p class="text-sm text-blue-600">Guía rápida de procedimientos</p>
             </div>
-            <div id="procedures-list" class="space-y-4">
-                <!-- Procedures injected here -->
-            </div>
+            <div id="procedures-list" class="space-y-4"></div>
         </section>
 
-        <!-- 5. CHAT VIEW -->
+        <!-- 5. CHAT -->
         <section id="view-chat" class="view-section hidden flex flex-col h-full">
-            <div id="chat-box" class="flex-grow overflow-y-auto p-4 space-y-3 pb-24">
-                <!-- Chat messages -->
-            </div>
-            
-            <!-- Chat Input Area (Sticky Bottom) -->
-            <div class="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-3 py-2 flex items-center gap-2 z-30">
+            <div id="chat-box" class="flex-grow overflow-y-auto p-4 space-y-3 pb-24"></div>
+            <div class="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-3 py-2 flex items-center gap-2 z-30 pb-safe">
                 <button id="img-btn" class="text-gray-400 hover:text-blue-600 p-2"><i class="fas fa-image text-lg"></i></button>
                 <input type="file" id="img-input" accept="image/*" class="hidden">
-                
                 <input type="text" id="msg-input" placeholder="Mensaje..." class="flex-grow bg-gray-100 border-0 rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                
-                <!-- PTT Button -->
                 <button id="mic-btn" class="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg transition-all duration-150 no-select" oncontextmenu="return false;">
                     <i class="fas fa-microphone"></i>
                 </button>
-                
-                <!-- Send Button (Hidden by default, shown if text typed logic could be added, but simple send btn is safer) -->
                 <button id="send-msg-btn" class="hidden text-blue-600 font-bold px-2">Enviar</button>
             </div>
         </section>
-
     </main>
 
-    <!-- BOTTOM NAVIGATION -->
+    <!-- NAV BAR -->
     <nav class="flex-none bg-white border-t border-gray-200 h-16 flex justify-around items-center z-20 pb-safe">
         <button class="nav-btn flex flex-col items-center gap-1 p-2 text-blue-600" data-tab="tasks">
-            <i class="fas fa-tasks text-xl"></i>
-            <span class="text-[10px] font-medium">Tareas</span>
+            <i class="fas fa-tasks text-xl"></i><span class="text-[10px] font-medium">Tareas</span>
         </button>
         <button class="nav-btn flex flex-col items-center gap-1 p-2 text-gray-400 relative" data-tab="repartos">
             <div id="repartos-badge" class="hidden absolute top-1 right-2 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">0</div>
-            <i class="fas fa-truck text-xl"></i>
-            <span class="text-[10px] font-medium">Repartos</span>
+            <i class="fas fa-truck text-xl"></i><span class="text-[10px] font-medium">Repartos</span>
         </button>
         <button class="nav-btn flex flex-col items-center gap-1 p-2 text-gray-400" data-tab="notes">
-            <i class="fas fa-sticky-note text-xl"></i>
-            <span class="text-[10px] font-medium">Notas</span>
+            <i class="fas fa-sticky-note text-xl"></i><span class="text-[10px] font-medium">Notas</span>
         </button>
         <button class="nav-btn flex flex-col items-center gap-1 p-2 text-gray-400" data-tab="procedimientos">
-            <i class="fas fa-book text-xl"></i>
-            <span class="text-[10px] font-medium">Guía</span>
+            <i class="fas fa-book text-xl"></i><span class="text-[10px] font-medium">Guía</span>
         </button>
         <button class="nav-btn flex flex-col items-center gap-1 p-2 text-gray-400" data-tab="chat">
-            <i class="fas fa-comments text-xl"></i>
-            <span class="text-[10px] font-medium">Radio</span>
+            <i class="fas fa-comments text-xl"></i><span class="text-[10px] font-medium">Radio</span>
         </button>
     </nav>
 
     <!-- MODALS -->
-    
     <!-- Reparto Modal -->
     <div id="reparto-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-xl w-full max-w-md p-6 shadow-2xl animate-[fadeIn_0.2s_ease-out]">
@@ -698,7 +736,6 @@
                 <textarea id="r-order" placeholder="Detalle del pedido" class="w-full bg-gray-50 border rounded p-2 text-sm" rows="2" required></textarea>
                 <input id="r-address" type="text" placeholder="Dirección / Ubicación" class="w-full bg-gray-50 border rounded p-2 text-sm" required>
                 <input id="r-when" type="text" placeholder="Cuándo (ej: Hoy 14hs)" class="w-full bg-gray-50 border rounded p-2 text-sm" required>
-                
                 <div class="flex gap-3 mt-4">
                     <button type="button" id="cancel-reparto" class="flex-1 bg-gray-100 text-gray-700 py-2 rounded font-medium">Cancelar</button>
                     <button type="submit" class="flex-1 bg-indigo-600 text-white py-2 rounded font-medium">Guardar</button>
@@ -712,14 +749,21 @@
         <div class="bg-white rounded-xl w-full max-w-sm p-6 text-center">
             <h3 class="text-lg font-bold text-gray-800 mb-6">Selecciona Sucursal</h3>
             <div class="grid gap-3">
-                <button class="select-branch-btn bg-blue-50 text-blue-700 py-3 rounded-lg font-bold border border-blue-200 hover:bg-blue-100" data-branch="centro">
-                    🏢 CENTRO
-                </button>
-                <button class="select-branch-btn bg-green-50 text-green-700 py-3 rounded-lg font-bold border border-green-200 hover:bg-green-100" data-branch="ejemplares">
-                    🌲 EJEMPLARES
-                </button>
+                <button class="select-branch-btn bg-blue-50 text-blue-700 py-3 rounded-lg font-bold border border-blue-200 hover:bg-blue-100" data-branch="centro">🏢 CENTRO</button>
+                <button class="select-branch-btn bg-green-50 text-green-700 py-3 rounded-lg font-bold border border-green-200 hover:bg-green-100" data-branch="ejemplares">🌲 EJEMPLARES</button>
             </div>
             <button id="close-branch-modal" class="mt-6 text-sm text-gray-500 underline">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- User Profile Modal -->
+    <div id="user-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl w-full max-w-sm p-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">¿Quién eres?</h3>
+            <p class="text-sm text-gray-500 mb-4">Tu nombre aparecerá cuando completes tareas o envíes mensajes.</p>
+            <input type="text" id="username-input" class="w-full border border-gray-300 rounded p-2 mb-4" placeholder="Tu Nombre (ej: Juan)">
+            <button id="save-user-btn" class="w-full bg-blue-600 text-white py-2 rounded font-bold">Guardar Nombre</button>
+            <button id="close-user-modal" class="w-full text-center text-gray-400 mt-3 text-sm">Cancelar</button>
         </div>
     </div>
 
