@@ -1,818 +1,917 @@
 <!DOCTYPE html>
-<html lang="es" class="h-full">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Jardín OS</title>
+    <title>Jardín OS v8 Titanium</title>
     
-    <!-- PWA Manifest (Inline Base64) -->
-    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkphcmTDrW4gT1MiLAogICJzaG9ydF9uYW1lIjogIkphcmTDrW4iLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzFmMjkzNyIsCiAgInRoZW1lX2NvbG9yIjogIiMxMTE4MjciLAogICJpY29ucyI6IFt7CiAgICAic3JjIjogImh0dHBzOi8vY2RuLWljb25zLXBuZy5mbGF0aWNvbi5jb20vNTEyLzE1MTgvMTUxODE1NS5wbmciLAogICAgInNpemVzIjogIjUxMng1MTIiLAogICAgInR5cGUiOiAiaW1hZ2UvcG5nIgogIH1dCn0=">
-    
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- FontAwesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Kalam:wght@300;400;700&display=swap" rel="stylesheet">
+    <!-- === MANIFIESTO PWA === -->
+    <link rel="manifest" href='data:application/manifest+json,{"name":"Jardín OS","short_name":"Jardín OS","start_url":".","display":"standalone","background_color":"#1e293b","theme_color":"#0f172a","description":"Gestión Integral de Vivero","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/1598/1598196.png","sizes":"192x192","type":"image/png"}]}'>
 
-    <!-- Firebase SDKs -->
+    <!-- Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
+    
+    <!-- Librerías -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- Configuración Tailwind -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'], handwriting: ['Kalam', 'cursive'] },
+                    colors: {
+                        theme: {
+                            centro: '#064e3b', centroLight: '#34d399',
+                            ejemplares: '#312e81', ejemplaresLight: '#818cf8',
+                            warning: '#f59e0b', danger: '#ef4444'
+                        }
+                    },
+                    animation: {
+                        'slide-in': 'slideIn 0.3s ease-out forwards',
+                        'fade-in': 'fadeIn 0.2s ease-out forwards',
+                    },
+                    keyframes: {
+                        slideIn: { '0%': { transform: 'translateX(-100%)' }, '100%': { transform: 'translateX(0)' } },
+                        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* CSS Core */
+        :root { --app-height: 100dvh; --header-height: 64px; }
+        body { 
+            height: var(--app-height); overflow: hidden; 
+            -webkit-tap-highlight-color: transparent; user-select: none;
+            background-color: #f1f5f9;
+        }
+        
+        /* Themes */
+        body.branch-centro { --primary: #064e3b; --secondary: #ecfdf5; --accent: #10b981; }
+        body.branch-ejemplares { --primary: #312e81; --secondary: #eef2ff; --accent: #6366f1; }
+        
+        /* Scrollbar Hide */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .scroll-area { height: calc(var(--app-height) - var(--header-height)); overflow-y: auto; padding-bottom: 80px; }
+
+        /* Custom UI Components */
+        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.5); }
+        .card-shadow { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); }
+        
+        /* Chat Bubbles */
+        .msg-bubble { max-width: 85%; border-radius: 16px; padding: 12px; margin-bottom: 8px; position: relative; word-wrap: break-word; }
+        .msg-me { background-color: var(--secondary); margin-left: auto; color: var(--primary); border-bottom-right-radius: 4px; border: 1px solid rgba(0,0,0,0.05); }
+        .msg-other { background-color: white; margin-right: auto; color: #334155; border-bottom-left-radius: 4px; border: 1px solid #e2e8f0; }
+
+        /* Loader */
+        .spinner { border: 3px solid rgba(0,0,0,0.1); border-left-color: var(--accent); border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        #toast-container { position: fixed; top: 1rem; left: 50%; transform: translateX(-50%); z-index: 100; pointer-events: none; width: 90%; }
+        .toast { pointer-events: auto; animation: fade-in-down 0.3s ease-out; background: #1e293b; color: white; padding: 10px 20px; border-radius: 30px; font-size: 0.9rem; display: flex; align-items: center; gap: 10px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+    </style>
+</head>
+<body id="appBody" class="branch-centro transition-colors duration-500 font-sans text-slate-800">
+
+    <!-- === SIDEBAR NAVIGATION === -->
+    <div id="sidebarOverlay" class="fixed inset-0 bg-black/50 z-40 hidden transition-opacity duration-300 opacity-0" onclick="UI.toggleSidebar(false)"></div>
+    <aside id="sidebar" class="fixed top-0 left-0 h-full w-72 bg-white z-50 transform -translate-x-full transition-transform duration-300 shadow-2xl flex flex-col">
+        <div class="p-6 text-white" style="background-color: var(--primary);">
+            <div class="flex items-center gap-3 mb-2">
+                <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                    <i class="fas fa-seedling text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="font-bold text-lg leading-tight">Jardín OS</h2>
+                    <p class="text-xs opacity-80 font-mono">v8.0 Titanium</p>
+                </div>
+            </div>
+            <div class="mt-4 pt-4 border-t border-white/20">
+                <p class="text-xs font-bold uppercase opacity-60 mb-1">Sucursal Actual</p>
+                <button id="branchToggleBtn" class="flex items-center justify-between w-full bg-black/20 p-2 rounded-lg hover:bg-black/30 transition">
+                    <span id="sidebarBranchName" class="font-bold">Centro Tao</span>
+                    <i class="fas fa-exchange-alt opacity-70"></i>
+                </button>
+            </div>
+        </div>
+        
+        <nav class="flex-grow overflow-y-auto py-4">
+            <ul class="space-y-1">
+                <li><button onclick="UI.nav('tasks')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-50 flex items-center gap-4 text-slate-600 font-medium border-l-4 border-transparent active-nav"><i class="fas fa-tasks w-5"></i> Tareas</button></li>
+                <li><button onclick="UI.nav('orders')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-50 flex items-center gap-4 text-slate-600 font-medium border-l-4 border-transparent"><i class="fas fa-shopping-basket w-5"></i> Pedidos <span id="badgeOrders" class="hidden bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full ml-auto">!</span></button></li>
+                <li><button onclick="UI.nav('delivery')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-50 flex items-center gap-4 text-slate-600 font-medium border-l-4 border-transparent"><i class="fas fa-truck w-5"></i> Repartos <span id="badgeDelivery" class="hidden bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full ml-auto">!</span></button></li>
+                <li><button onclick="UI.nav('procedures')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-50 flex items-center gap-4 text-slate-600 font-medium border-l-4 border-transparent"><i class="fas fa-book w-5"></i> Procesos</button></li>
+                <li><button onclick="UI.nav('notes')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-50 flex items-center gap-4 text-slate-600 font-medium border-l-4 border-transparent"><i class="fas fa-sticky-note w-5"></i> Notas</button></li>
+                <li><button onclick="UI.nav('stock')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-50 flex items-center gap-4 text-slate-600 font-medium border-l-4 border-transparent"><i class="fas fa-cubes w-5"></i> Stock</button></li>
+                <li><button onclick="UI.nav('chat')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-50 flex items-center gap-4 text-slate-600 font-medium border-l-4 border-transparent"><i class="fas fa-walkie-talkie w-5"></i> Radio</button></li>
+            </ul>
+        </nav>
+
+        <div class="p-4 border-t border-slate-100">
+            <button id="wakeLockBtn" class="w-full py-2 px-3 rounded-lg bg-slate-100 text-slate-500 text-xs font-bold flex items-center justify-center gap-2">
+                <i class="far fa-lightbulb"></i> <span>Pantalla: Normal</span>
+            </button>
+            <div class="text-center mt-2 text-[10px] text-slate-400" id="connectionStatus">Conectado</div>
+        </div>
+    </aside>
+
+    <!-- === MAIN LAYOUT === -->
+    <div class="flex flex-col h-full w-full relative">
+        
+        <!-- HEADER -->
+        <header class="flex-none h-[64px] shadow-md flex items-center justify-between px-4 z-20 text-white transition-colors duration-500" style="background-color: var(--primary);">
+            <div class="flex items-center gap-3">
+                <button onclick="UI.toggleSidebar(true)" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 active:scale-95 transition">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+                <div>
+                    <h1 id="pageTitle" class="font-bold text-lg leading-none">Mis Tareas</h1>
+                    <span id="currentDate" class="text-xs opacity-80 capitalize">Cargando...</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                 <!-- Status icons/indicators can go here -->
+                 <div id="loadingIndicator" class="hidden spinner border-white/30 border-l-white"></div>
+            </div>
+        </header>
+
+        <!-- CONTENT AREA -->
+        <main id="mainContainer" class="flex-grow relative bg-slate-100 overflow-hidden">
+            
+            <!-- VIEW: TASKS -->
+            <div id="view-tasks" class="view-section scroll-area p-4">
+                <div id="taskList" class="space-y-3 pb-24">
+                    <!-- Skeleton -->
+                    <div class="animate-pulse bg-white h-24 rounded-xl"></div>
+                </div>
+            </div>
+
+            <!-- VIEW: ORDERS (PEDIDOS) -->
+            <div id="view-orders" class="view-section scroll-area hidden p-4">
+                <div class="bg-blue-50 border border-blue-200 text-blue-800 p-3 rounded-xl mb-4 text-sm flex items-center justify-center gap-2 text-center">
+                    <i class="fas fa-info-circle"></i> Canal compartido de pedidos de stock
+                </div>
+                <div id="ordersList" class="space-y-3 pb-24"></div>
+            </div>
+
+            <!-- VIEW: DELIVERY -->
+            <div id="view-delivery" class="view-section scroll-area hidden p-4">
+                <div id="deliveryList" class="space-y-4 pb-24"></div>
+            </div>
+
+            <!-- VIEW: NOTES -->
+            <div id="view-notes" class="view-section scroll-area hidden p-4">
+                <div id="notesList" class="grid gap-4 pb-24"></div>
+            </div>
+
+            <!-- VIEW: PROCEDURES -->
+            <div id="view-procedures" class="view-section scroll-area hidden p-4">
+                <div id="proceduresList" class="space-y-4 pb-24"></div>
+            </div>
+
+            <!-- VIEW: STOCK -->
+            <div id="view-stock" class="view-section scroll-area hidden flex items-center justify-center flex-col opacity-50">
+                <i class="fas fa-tools text-6xl mb-4 text-slate-300"></i>
+                <p>Módulo de Stock en construcción</p>
+            </div>
+
+            <!-- VIEW: CHAT -->
+            <div id="view-chat" class="view-section hidden h-full flex flex-col">
+                <div id="chatList" class="flex-grow overflow-y-auto p-4 space-y-2 pb-4"></div>
+                <div class="p-3 bg-white border-t border-slate-200 flex items-center gap-2 pb-[max(12px,env(safe-area-inset-bottom))]">
+                     <button onclick="document.getElementById('chatImageInput').click()" class="p-3 text-slate-400 hover:text-emerald-600"><i class="fas fa-camera text-xl"></i></button>
+                     <input type="file" id="chatImageInput" accept="image/*" class="hidden" onchange="window.handleChatImage(this)">
+                     <div class="flex-grow bg-slate-100 rounded-full px-4 py-2">
+                        <input type="text" id="chatTextInput" class="w-full bg-transparent outline-none" placeholder="Mensaje...">
+                     </div>
+                     <button id="sendChatBtn" class="text-slate-500 p-3"><i class="fas fa-paper-plane text-lg"></i></button>
+                     <button id="micBtn" class="w-10 h-10 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg active:scale-95"><i class="fas fa-microphone"></i></button>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- FAB (Floating Action Button) -->
+        <div id="fabContainer" class="fixed bottom-6 right-6 z-30 transition-transform duration-300 pb-[env(safe-area-inset-bottom)]">
+            <button id="mainFab" class="w-14 h-14 rounded-full text-white shadow-xl flex items-center justify-center text-2xl active:scale-90 transition-transform hover:shadow-2xl" style="background-color: var(--accent);">
+                <i class="fas fa-plus"></i>
+            </button>
+        </div>
+
+    </div>
+
+    <!-- === MODALS === -->
+    <div id="modalOverlay" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center sm:p-4 backdrop-blur-sm">
+        
+        <!-- MODAL: TASK (CREATE/EDIT) -->
+        <div id="modal-tasks" class="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden hidden transform transition-transform duration-300 translate-y-full sm:translate-y-0">
+            <div class="p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-slate-800" id="taskModalTitle">Nueva Tarea</h2>
+                    <button class="modal-close text-slate-400"><i class="fas fa-times"></i></button>
+                </div>
+                <input type="hidden" id="taskId"> <!-- For edits -->
+                <div class="space-y-4">
+                    <input type="text" id="taskInput" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none focus:border-emerald-500 font-medium" placeholder="Descripción de la tarea">
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="text" id="taskAssignee" class="p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm" placeholder="Responsable">
+                        <select id="taskPriority" class="p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-bold text-slate-600">
+                            <option value="low">Baja</option>
+                            <option value="medium">Media</option>
+                            <option value="high">Alta</option>
+                            <option value="critical">URGENTE</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-400 uppercase ml-1">Repetición (Ciclo)</label>
+                        <div class="flex items-center gap-2 mt-1 bg-slate-50 p-2 rounded-xl border border-slate-200">
+                            <div class="bg-indigo-100 text-indigo-600 w-8 h-8 rounded-lg flex items-center justify-center"><i class="fas fa-sync-alt"></i></div>
+                            <select id="taskCycle" class="bg-transparent w-full outline-none text-sm font-medium text-slate-700">
+                                <option value="none">No cíclica (Una vez)</option>
+                                <option value="daily">Todos los días</option>
+                                <option value="weekly">Semanal (7 días)</option>
+                                <option value="monthly">Mensual</option>
+                                <option value="quarterly">Cada 3 meses</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <button id="saveTaskBtn" class="w-full mt-6 py-3.5 text-white rounded-xl shadow-lg font-bold text-lg active:scale-95 transition-transform" style="background-color: var(--primary);">Guardar Tarea</button>
+            </div>
+        </div>
+
+        <!-- MODAL: ORDER (PEDIDOS) -->
+        <div id="modal-orders" class="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden hidden transform transition-transform duration-300 translate-y-full sm:translate-y-0">
+            <div class="p-5">
+                <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fas fa-shopping-basket text-blue-600"></i> Nuevo Pedido</h2>
+                <div class="space-y-3">
+                    <input type="text" id="orderItem" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none font-bold" placeholder="¿Qué necesitamos?">
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="text" id="orderAmount" class="p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none" placeholder="Cantidad">
+                        <input type="text" id="orderRequester" class="p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none" placeholder="¿Quién pide?">
+                    </div>
+                    <textarea id="orderNotes" rows="2" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm" placeholder="Detalles adicionales (marca, modelo, etc)"></textarea>
+                </div>
+                <button id="saveOrderBtn" class="w-full mt-6 py-3.5 bg-blue-600 text-white rounded-xl shadow-lg font-bold active:scale-95">Solicitar</button>
+            </div>
+        </div>
+
+        <!-- MODAL: DELIVERY -->
+        <div id="modal-delivery" class="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden hidden transform transition-transform duration-300 translate-y-full sm:translate-y-0">
+            <div class="p-5">
+                <h2 class="text-xl font-bold text-slate-800 mb-4">Nuevo Reparto</h2>
+                <div class="space-y-3">
+                    <input type="text" id="delClient" class="w-full p-3 bg-slate-50 rounded-xl outline-none border border-slate-200" placeholder="Cliente">
+                    <input type="tel" id="delPhone" class="w-full p-3 bg-slate-50 rounded-xl outline-none border border-slate-200" placeholder="Teléfono">
+                    <textarea id="delItems" rows="3" class="w-full p-3 bg-slate-50 rounded-xl outline-none border border-slate-200" placeholder="Items a entregar..."></textarea>
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="text" id="delWhen" class="p-3 bg-slate-50 rounded-xl text-sm border border-slate-200" placeholder="¿Cuándo?">
+                        <input type="text" id="delWhere" class="p-3 bg-slate-50 rounded-xl text-sm border border-slate-200" placeholder="Dirección">
+                    </div>
+                </div>
+                <button id="saveDelBtn" class="w-full mt-6 py-3.5 bg-indigo-600 text-white rounded-xl shadow-lg font-bold active:scale-95">Agendar Reparto</button>
+            </div>
+        </div>
+
+         <!-- MODAL: NOTES -->
+        <div id="modal-notes" class="bg-yellow-50 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl border-t-4 border-yellow-400 hidden transform transition-transform duration-300 translate-y-full sm:translate-y-0">
+            <div class="p-5">
+                <h2 class="text-xl font-bold text-yellow-800 mb-4">Nueva Nota</h2>
+                <select id="noteType" class="w-full p-2 mb-4 bg-yellow-100 border-none rounded text-yellow-900 font-bold"><option value="normal">General</option><option value="billing">Cobranza $$</option></select>
+                <textarea id="noteContent" rows="6" class="w-full bg-transparent text-xl font-handwriting placeholder-yellow-800/30 outline-none" placeholder="Escribe aquí..."></textarea>
+                <div class="flex gap-2 mt-4">
+                    <button class="modal-close flex-1 py-3 text-yellow-700 font-bold">Cancelar</button>
+                    <button id="saveNoteBtn" class="flex-1 py-3 bg-yellow-400 text-yellow-900 rounded-xl font-bold shadow-sm">Pegar Nota</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: PROCEDURES -->
+         <div id="modal-procedures" class="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl hidden transform transition-transform duration-300 translate-y-full sm:translate-y-0">
+            <div class="p-5">
+                <h2 class="text-xl font-bold text-slate-800 mb-4">Nuevo Proceso</h2>
+                <input type="text" id="procTitle" class="w-full p-3 mb-3 bg-slate-50 rounded-xl border border-slate-200 outline-none font-bold" placeholder="Título del Protocolo">
+                <textarea id="procSteps" rows="5" class="w-full p-3 mb-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm" placeholder="- Paso 1&#10;- Paso 2..."></textarea>
+                <div class="flex justify-between mb-6 px-2">
+                    <label><input type="radio" name="procColor" value="blue" checked class="accent-blue-500 w-5 h-5"></label>
+                    <label><input type="radio" name="procColor" value="green" class="accent-emerald-500 w-5 h-5"></label>
+                    <label><input type="radio" name="procColor" value="red" class="accent-red-500 w-5 h-5"></label>
+                    <label><input type="radio" name="procColor" value="purple" class="accent-purple-500 w-5 h-5"></label>
+                </div>
+                <button id="saveProcBtn" class="w-full py-3 bg-slate-800 text-white rounded-xl font-bold">Guardar Protocolo</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- TOAST CONTAINER -->
+    <div id="toast-container"></div>
+
+    <!-- LOGIC -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, deleteDoc, updateDoc, doc, serverTimestamp, limit, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, serverTimestamp, query, orderBy, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
-        // --- CONFIGURATION & INIT ---
-        const manualConfig = { apiKey: "" }; // API Key injected by environment
-        let firebaseConfig = manualConfig;
+        // CONFIG
+        const manualConfig = { apiKey: "", authDomain: "app-jardin-v4.firebaseapp.com", projectId: "app-jardin-v4", storageBucket: "app-jardin-v4.firebasestorage.app", messagingSenderId: "413324369604", appId: "1:413324369604:web:f78e3f459725dd824e3391" };
+        let firebaseConfig = null;
+        try { if (typeof __firebase_config !== 'undefined' && __firebase_config) firebaseConfig = JSON.parse(__firebase_config); else if (typeof manualConfig !== 'undefined') firebaseConfig = manualConfig; } catch(e) {}
         
-        try {
-            if (typeof __firebase_config !== 'undefined') firebaseConfig = JSON.parse(__firebase_config);
-        } catch(e) { console.error("Config Error", e); }
-
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
         const storage = getStorage(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'jardin-os-default';
+        const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'jardin-os-v8';
 
-        // --- GLOBAL STATE & UTILS ---
-        const state = {
+        // STATE
+        const State = {
             user: null,
-            displayName: localStorage.getItem('jardin_username') || 'Personal',
-            branch: localStorage.getItem('jardin_branch') || 'centro', 
-            currentTab: 'tasks',
-            audioStream: null,
-            mediaRecorder: null,
-            audioChunks: [],
-            isRecording: false
+            branch: localStorage.getItem('tao_branch') || 'centro',
+            view: 'tasks',
+            listeners: {}
         };
 
-        const DOM = {
-            app: document.getElementById('app-root'),
-            toastContainer: document.getElementById('toast-container'),
-            views: document.querySelectorAll('.view-section'),
-            navBtns: document.querySelectorAll('.nav-btn'),
-            branchLabel: document.getElementById('branch-label'),
-            branchModal: document.getElementById('branch-modal'),
-            userModal: document.getElementById('user-modal'),
-            repartosBadge: document.getElementById('repartos-badge')
-        };
+        // UI MANAGER
+        const UI = {
+            init() {
+                this.setBranch(State.branch);
+                this.nav('tasks');
+                document.getElementById('currentDate').innerText = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' });
+                
+                // Event Listeners
+                document.getElementById('branchToggleBtn').onclick = () => this.toggleBranch();
+                document.querySelectorAll('.modal-close').forEach(b => b.onclick = () => this.closeModal());
+                document.getElementById('modalOverlay').onclick = (e) => { if(e.target === document.getElementById('modalOverlay')) this.closeModal(); };
+                document.getElementById('mainFab').onclick = () => this.handleFab();
+            },
 
-        // Utility: Toast Notification
-        window.showToast = (msg, type = 'info') => {
-            const toast = document.createElement('div');
-            const colors = type === 'error' ? 'bg-red-500' : (type === 'success' ? 'bg-green-500' : 'bg-gray-800');
-            toast.className = `${colors} text-white px-4 py-3 rounded-lg shadow-lg mb-2 transform transition-all duration-300 translate-y-10 opacity-0 flex items-center gap-2 z-50 shadow-xl border border-white/10`;
-            toast.innerHTML = `<span>${msg}</span>`;
-            DOM.toastContainer.appendChild(toast);
+            setBranch(branch) {
+                State.branch = branch;
+                localStorage.setItem('tao_branch', branch);
+                const body = document.getElementById('appBody');
+                const label = document.getElementById('sidebarBranchName');
+                
+                if (branch === 'centro') {
+                    body.className = 'branch-centro transition-colors duration-500 font-sans text-slate-800';
+                    label.innerText = 'Centro Tao';
+                } else {
+                    body.className = 'branch-ejemplares transition-colors duration-500 font-sans text-slate-800';
+                    label.innerText = 'Ejemplares Tao';
+                }
+                
+                if(State.user) Data.resubscribe();
+                this.toast(`Cambiado a ${label.innerText}`);
+            },
+
+            toggleBranch() {
+                this.setBranch(State.branch === 'centro' ? 'ejemplares' : 'centro');
+            },
+
+            toggleSidebar(show) {
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('sidebarOverlay');
+                if (show) {
+                    overlay.classList.remove('hidden');
+                    // Force reflow
+                    void overlay.offsetWidth; 
+                    overlay.classList.remove('opacity-0');
+                    sidebar.classList.remove('-translate-x-full');
+                } else {
+                    overlay.classList.add('opacity-0');
+                    sidebar.classList.add('-translate-x-full');
+                    setTimeout(() => overlay.classList.add('hidden'), 300);
+                }
+            },
+
+            nav(view) {
+                State.view = view;
+                this.toggleSidebar(false);
+                
+                // Update Sidebar Active State
+                document.querySelectorAll('.nav-item').forEach(el => {
+                    el.classList.remove('active-nav', 'bg-slate-50', 'border-slate-500');
+                    if (el.getAttribute('onclick').includes(view)) {
+                        el.classList.add('bg-slate-50', 'border-slate-500');
+                        el.querySelector('i').style.color = 'var(--primary)';
+                    } else {
+                        el.querySelector('i').style.color = '';
+                    }
+                });
+
+                // Switch Views
+                document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+                document.getElementById(`view-${view}`).classList.remove('hidden');
+
+                // Update Header
+                const titles = { tasks: 'Tareas', orders: 'Pedidos', delivery: 'Repartos', notes: 'Notas', procedures: 'Procesos', stock: 'Inventario', chat: 'Radio Frecuencia' };
+                document.getElementById('pageTitle').innerText = titles[view];
+                
+                // Chat Scroll
+                if(view === 'chat') this.scrollToBottom('chatList');
+            },
+
+            openModal(id, data = null) {
+                const modal = document.getElementById(id);
+                const overlay = document.getElementById('modalOverlay');
+                overlay.classList.remove('hidden');
+                modal.classList.remove('hidden');
+                
+                // Animation
+                requestAnimationFrame(() => {
+                    modal.classList.remove('translate-y-full');
+                    if(window.innerWidth >= 640) modal.classList.remove('sm:translate-y-full');
+                });
+
+                // Logic specific for edits
+                if (id === 'modal-tasks') {
+                    if (data) {
+                        document.getElementById('taskModalTitle').innerText = "Editar Tarea";
+                        document.getElementById('taskId').value = data.id;
+                        document.getElementById('taskInput').value = data.text;
+                        document.getElementById('taskAssignee').value = data.assignee || '';
+                        document.getElementById('taskPriority').value = data.priority || 'medium';
+                        document.getElementById('taskCycle').value = data.cycle || 'none';
+                    } else {
+                        document.getElementById('taskModalTitle').innerText = "Nueva Tarea";
+                        document.getElementById('taskId').value = '';
+                        document.getElementById('taskInput').value = '';
+                        document.getElementById('taskCycle').value = 'none';
+                    }
+                }
+            },
+
+            closeModal() {
+                const overlay = document.getElementById('modalOverlay');
+                const openModals = document.querySelectorAll('#modalOverlay > div:not(.hidden)');
+                
+                openModals.forEach(m => {
+                    m.classList.add('translate-y-full');
+                    if(window.innerWidth >= 640) m.classList.add('sm:translate-y-full');
+                });
+                
+                setTimeout(() => {
+                    overlay.classList.add('hidden');
+                    openModals.forEach(m => m.classList.add('hidden'));
+                }, 300);
+            },
+
+            handleFab() {
+                const map = { tasks: 'modal-tasks', orders: 'modal-orders', delivery: 'modal-delivery', notes: 'modal-notes', procedures: 'modal-procedures' };
+                if (map[State.view]) this.openModal(map[State.view]);
+            },
+
+            toast(msg, type='info') {
+                const container = document.getElementById('toast-container');
+                const el = document.createElement('div');
+                const colors = { info: 'text-blue-400', success: 'text-emerald-400', error: 'text-red-400' };
+                const icon = type === 'error' ? 'fa-exclamation-circle' : type === 'success' ? 'fa-check-circle' : 'fa-info-circle';
+                
+                el.className = 'toast';
+                el.innerHTML = `<i class="fas ${icon} ${colors[type]}"></i> <span>${msg}</span>`;
+                container.appendChild(el);
+                
+                setTimeout(() => {
+                    el.style.opacity = '0';
+                    el.style.transform = 'translateY(-10px)';
+                    setTimeout(() => el.remove(), 300);
+                }, 3000);
+            },
             
-            requestAnimationFrame(() => {
-                toast.classList.remove('translate-y-10', 'opacity-0');
-            });
+            scrollToBottom(id) {
+                const el = document.getElementById(id);
+                if(el) el.scrollTop = el.scrollHeight;
+            },
 
-            setTimeout(() => {
-                toast.classList.add('opacity-0', 'translate-y-4');
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
-        };
+            renderTasks(tasks) {
+                const list = document.getElementById('taskList');
+                list.innerHTML = '';
+                if(tasks.length === 0) { list.innerHTML = this.emptyState('relax', 'Todo listo por hoy'); return; }
 
-        // Utility: Path Generators
-        const getBranchPath = (col) => `artifacts/${appId}/branches/${state.branch}/${col}`;
-        const getGlobalPath = (col) => `artifacts/${appId}/${col}_globales`;
+                const prioColor = { critical: 'border-l-red-500', high: 'border-l-orange-500', medium: 'border-l-blue-500', low: 'border-l-emerald-500' };
+                const prioText = { critical: 'URGENTE', high: 'ALTA', medium: 'MEDIA', low: 'BAJA' };
 
-        // Utility: Date Checks for Cyclic Tasks
-        const shouldResetTask = (task) => {
-            if (!task.completed || !task.frequency || task.frequency === 'once') return false;
-            if (!task.lastCompletedAt) return false;
+                tasks.forEach(t => {
+                    const isDone = t.status === 'done';
+                    const isPartial = t.status === 'partial';
+                    const cycleLabel = t.cycle && t.cycle !== 'none' ? `<span class="bg-indigo-100 text-indigo-700 text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1"><i class="fas fa-sync-alt text-[8px]"></i> ${this.getCycleName(t.cycle)}</span>` : '';
+                    
+                    const div = document.createElement('div');
+                    div.className = `bg-white rounded-xl p-4 shadow-sm border-l-4 ${prioColor[t.priority] || 'border-l-slate-300'} flex gap-3 transition-all ${isDone ? 'opacity-50' : ''}`;
+                    
+                    let statusBtn = '';
+                    if (isDone) {
+                         statusBtn = `<button onclick="window.updateTaskStatus('${t.id}', 'pending')" class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-md"><i class="fas fa-check"></i></button>`;
+                    } else if (isPartial) {
+                         statusBtn = `<button onclick="window.updateTaskStatus('${t.id}', 'done')" class="w-8 h-8 rounded-full bg-amber-400 text-white flex items-center justify-center shadow-md animate-pulse"><i class="fas fa-hourglass-half"></i></button>`;
+                    } else {
+                         statusBtn = `<button onclick="window.updateTaskStatus('${t.id}', 'done')" class="w-8 h-8 rounded-full border-2 border-slate-300 text-transparent hover:border-emerald-400 transition-colors"></button>`;
+                    }
 
-            const lastDate = task.lastCompletedAt.toDate ? task.lastCompletedAt.toDate() : new Date(task.lastCompletedAt);
-            const now = new Date();
-            lastDate.setHours(0,0,0,0);
-            const today = new Date(); 
-            today.setHours(0,0,0,0);
+                    div.innerHTML = `
+                        <div class="flex-grow">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">${prioText[t.priority] || 'NORMAL'}</span>
+                                ${cycleLabel}
+                            </div>
+                            <h3 class="text-slate-800 font-medium leading-tight ${isDone ? 'line-through text-slate-400' : ''}">${t.text}</h3>
+                            <div class="flex items-center justify-between mt-2">
+                                <span class="text-xs text-slate-400 flex items-center gap-1"><i class="fas fa-user-circle"></i> ${t.assignee || 'Sin asignar'}</span>
+                                <button onclick='window.editTask(${JSON.stringify(t)})' class="text-slate-300 hover:text-slate-500 px-2"><i class="fas fa-ellipsis-h"></i></button>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-center gap-2 pt-1 border-l border-slate-100 pl-3">
+                            ${statusBtn}
+                            ${!isDone && !isPartial ? `<button onclick="window.updateTaskStatus('${t.id}', 'partial')" class="text-xs text-amber-400 font-bold">1/2</button>` : ''}
+                            ${isDone && !t.cycle ? `<button onclick="window.delTask('${t.id}')" class="text-red-300 hover:text-red-500 mt-auto"><i class="fas fa-trash"></i></button>` : ''}
+                        </div>
+                    `;
+                    list.appendChild(div);
+                });
+            },
 
-            const diffTime = Math.abs(today - lastDate);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            getCycleName(c) {
+                const map = { daily: 'Diario', weekly: 'Semanal', monthly: 'Mensual', quarterly: 'Trimestral' };
+                return map[c] || c;
+            },
 
-            switch (task.frequency) {
-                case 'daily': return diffDays >= 1; 
-                case 'weekly': return diffDays >= 7 || today.getDay() === 1 && lastDate.getDay() !== 1;
-                case 'monthly': return today.getMonth() !== lastDate.getMonth();
-                case '3months': return diffDays >= 90;
-                case '6months': return diffDays >= 180;
-                default: return false;
+            renderOrders(orders) {
+                const list = document.getElementById('ordersList');
+                list.innerHTML = '';
+                const pending = orders.filter(o => o.status !== 'received').length;
+                const badge = document.getElementById('badgeOrders');
+                badge.classList.toggle('hidden', pending === 0);
+
+                if(orders.length === 0) { list.innerHTML = this.emptyState('shopping-basket', 'Sin pedidos pendientes'); return; }
+
+                orders.forEach(o => {
+                    const isReceived = o.status === 'received';
+                    const isOrdered = o.status === 'ordered';
+                    
+                    const div = document.createElement('div');
+                    div.className = `bg-white rounded-xl p-4 shadow-sm border border-slate-200 relative ${isReceived ? 'opacity-60 bg-slate-50' : ''}`;
+                    
+                    let statusBadge = '';
+                    if(isReceived) statusBadge = '<span class="bg-emerald-100 text-emerald-700 text-xs px-2 py-1 rounded font-bold">RECIBIDO</span>';
+                    else if(isOrdered) statusBadge = '<span class="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded font-bold">COMPRADO</span>';
+                    else statusBadge = '<span class="bg-slate-100 text-slate-500 text-xs px-2 py-1 rounded font-bold">PENDIENTE</span>';
+
+                    div.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-bold text-lg text-slate-800">${o.item} <span class="text-sm font-normal text-slate-500">x${o.amount}</span></h3>
+                            ${statusBadge}
+                        </div>
+                        ${o.notes ? `<p class="text-sm text-slate-600 italic bg-slate-50 p-2 rounded mb-2">${o.notes}</p>` : ''}
+                        <div class="flex justify-between items-center text-xs text-slate-400 mt-2">
+                            <span>Solicitado por: <strong>${o.requester}</strong> (${o.branch})</span>
+                            <div class="flex gap-2">
+                                ${!isReceived ? `<button onclick="window.advanceOrder('${o.id}', '${o.status}')" class="text-blue-600 font-bold hover:underline">AVANZAR</button>` : ''}
+                                <button onclick="window.delShared('orders', '${o.id}')" class="text-red-400"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                });
+            },
+
+            renderDeliveries(items) {
+                const list = document.getElementById('deliveryList');
+                list.innerHTML = '';
+                const pending = items.filter(i => i.status === 'pending').length;
+                document.getElementById('badgeDelivery').classList.toggle('hidden', pending === 0);
+                
+                if(items.length === 0) { list.innerHTML = this.emptyState('truck', 'Nada para repartir'); return; }
+
+                items.forEach(d => {
+                    const isDone = d.status === 'delivered';
+                    const isIncomplete = d.status === 'incomplete';
+                    const div = document.createElement('div');
+                    div.className = `bg-white rounded-xl shadow-sm border overflow-hidden ${isDone ? 'opacity-50 border-slate-200' : isIncomplete ? 'border-orange-200 bg-orange-50' : 'border-slate-200'}`;
+                    
+                    div.innerHTML = `
+                        <div class="p-4">
+                            <div class="flex justify-between items-start mb-3">
+                                <div>
+                                    <h3 class="font-bold text-slate-900">${d.client}</h3>
+                                    <a href="tel:${d.phone}" class="text-emerald-600 text-sm font-bold flex items-center gap-1"><i class="fas fa-phone"></i> ${d.phone}</a>
+                                </div>
+                                <div class="text-right">
+                                    <span class="block text-xs font-bold text-slate-500 uppercase tracking-wide">${d.status === 'pending' ? 'Pendiente' : d.status === 'delivered' ? 'Entregado' : 'Incompleto'}</span>
+                                    <span class="text-[10px] text-slate-400">${new Date(d.createdAt.seconds*1000).toLocaleDateString()}</span>
+                                </div>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-lg border border-slate-100 text-sm text-slate-700 italic mb-3">
+                                ${d.items}
+                            </div>
+                            <div class="flex gap-4 text-xs text-slate-500 font-medium">
+                                <span class="flex items-center gap-1"><i class="far fa-clock"></i> ${d.when}</span>
+                                <span class="flex items-center gap-1 text-blue-500"><i class="fas fa-map-marker-alt"></i> ${d.where}</span>
+                            </div>
+                        </div>
+                        <div class="bg-slate-50 border-t border-slate-100 p-2 flex justify-between items-center">
+                            <button onclick="window.delShared('deliveries', '${d.id}')" class="text-xs text-red-400 px-2">ELIMINAR</button>
+                            <div class="flex gap-2">
+                                <button onclick="window.updateDelStatus('${d.id}', 'incomplete')" class="px-3 py-1 bg-orange-100 text-orange-600 rounded text-xs font-bold">Incompleto</button>
+                                <button onclick="window.updateDelStatus('${d.id}', 'delivered')" class="px-3 py-1 bg-emerald-100 text-emerald-600 rounded text-xs font-bold">Entregado</button>
+                            </div>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                });
+            },
+
+            renderNotes(notes) {
+                const list = document.getElementById('notesList');
+                list.innerHTML = '';
+                notes.forEach(n => {
+                    const isMoney = n.type === 'billing';
+                    const div = document.createElement('div');
+                    div.className = `p-4 rounded-xl shadow-sm border relative ${isMoney ? 'bg-amber-50 border-amber-200' : 'bg-yellow-50 border-yellow-200'}`;
+                    div.innerHTML = `
+                        ${isMoney ? '<span class="absolute -top-2 left-4 bg-amber-500 text-white text-[10px] px-2 rounded">COBRAR</span>' : ''}
+                        <p class="whitespace-pre-wrap font-handwriting text-lg text-slate-800 leading-relaxed">${n.content}</p>
+                        <button onclick="window.delItem('notes', '${n.id}')" class="absolute top-2 right-2 text-slate-300 hover:text-red-500"><i class="fas fa-times"></i></button>
+                    `;
+                    list.appendChild(div);
+                });
+            },
+            
+            renderProcedures(procs) {
+                const list = document.getElementById('proceduresList');
+                list.innerHTML = '';
+                const colors = { blue: 'bg-blue-50 border-blue-200 text-blue-900', green: 'bg-emerald-50 border-emerald-200 text-emerald-900', red: 'bg-red-50 border-red-200 text-red-900', purple: 'bg-purple-50 border-purple-200 text-purple-900' };
+                
+                procs.forEach(p => {
+                    const style = colors[p.color] || colors.blue;
+                    const steps = p.steps.split('\n').map(s => `<li class="flex items-start gap-2 mb-1"><span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-current opacity-50 flex-shrink-0"></span><span>${s.replace(/^- /, '')}</span></li>`).join('');
+                    const div = document.createElement('div');
+                    div.className = `rounded-xl shadow-sm border p-5 relative ${style}`;
+                    div.innerHTML = `
+                        <h3 class="font-bold text-lg mb-3 flex items-center gap-2"><i class="fas fa-clipboard-check opacity-50"></i> ${p.title}</h3>
+                        <ul class="text-sm opacity-90 leading-relaxed">${steps}</ul>
+                        <button onclick="window.delShared('procedures', '${p.id}')" class="absolute top-4 right-4 opacity-30 hover:opacity-100 hover:text-red-600 transition"><i class="fas fa-trash"></i></button>
+                    `;
+                    list.appendChild(div);
+                });
+            },
+
+            renderChat(msgs) {
+                const list = document.getElementById('chatList');
+                list.innerHTML = '';
+                msgs.forEach(m => {
+                    const isMe = m.sender === State.user.uid;
+                    const div = document.createElement('div');
+                    div.className = `msg-bubble ${isMe ? 'msg-me' : 'msg-other'}`;
+                    
+                    let content = '';
+                    if(m.type === 'text') content = `<p>${m.text}</p>`;
+                    if(m.type === 'image') content = `<img src="${m.url}" class="rounded-lg max-h-48 w-full object-cover" onclick="window.open(this.src)">`;
+                    
+                    const time = m.createdAt ? new Date(m.createdAt.seconds*1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '...';
+                    
+                    div.innerHTML = `${content}<div class="text-[10px] text-right mt-1 opacity-50">${time}</div>`;
+                    list.appendChild(div);
+                });
+                // Only scroll if near bottom or first load (simplified here to always scroll for demo)
+                // this.scrollToBottom('chatList'); 
+            },
+
+            emptyState(icon, text) {
+                return `<div class="flex flex-col items-center justify-center py-10 opacity-40 gap-3"><i class="fas fa-${icon} text-4xl"></i><p>${text}</p></div>`;
             }
         };
 
-        // --- AUTHENTICATION ---
-        const initAuth = async () => {
+        // DATA MANAGER
+        const Data = {
+            // FIX: STRICT PATHS FOR RULES
+            getCol(name) { return collection(db, 'artifacts', APP_ID, 'public', 'data', name); },
+
+            resubscribe() {
+                // Unsubscribe existing
+                Object.values(State.listeners).forEach(u => u && u());
+
+                // Tasks - CLIENT SIDE FILTERING TO AVOID INDEX ERRORS
+                State.listeners.tasks = onSnapshot(this.getCol('tasks'), (snap) => {
+                    const tasks = []; 
+                    snap.forEach(d => {
+                        const data = d.data();
+                        if (data.branch === State.branch) tasks.push({id: d.id, ...data});
+                    });
+                    // Client sort
+                    const pVal = {critical:0, high:1, medium:2, low:3};
+                    tasks.sort((a,b) => {
+                        if(pVal[a.priority] !== pVal[b.priority]) return pVal[a.priority] - pVal[b.priority];
+                        return (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0);
+                    });
+                    UI.renderTasks(tasks);
+                });
+
+                // Notes
+                State.listeners.notes = onSnapshot(this.getCol('notes'), (snap) => {
+                    const items = []; 
+                    snap.forEach(d => {
+                        const data = d.data();
+                        if (data.branch === State.branch) items.push({id: d.id, ...data});
+                    });
+                    UI.renderNotes(items.sort((a,b) => (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)));
+                });
+
+                // Chat
+                State.listeners.chat = onSnapshot(this.getCol('chat'), (snap) => {
+                    const items = []; 
+                    snap.forEach(d => {
+                        const data = d.data();
+                        if (data.branch === State.branch) items.push({id: d.id, ...data});
+                    });
+                    items.sort((a,b) => (a.createdAt?.seconds||0)-(b.createdAt?.seconds||0));
+                    UI.renderChat(items);
+                    UI.scrollToBottom('chatList');
+                });
+
+                // Shared: Deliveries
+                State.listeners.delivery = onSnapshot(this.getCol('deliveries'), (snap) => {
+                    const items = []; snap.forEach(d => items.push({id: d.id, ...d.data()}));
+                    UI.renderDeliveries(items.sort((a,b) => (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)));
+                });
+
+                // Shared: Procedures
+                State.listeners.procedures = onSnapshot(this.getCol('procedures'), (snap) => {
+                    const items = []; snap.forEach(d => items.push({id: d.id, ...d.data()}));
+                    UI.renderProcedures(items.sort((a,b) => (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)));
+                });
+
+                // Shared: Orders
+                State.listeners.orders = onSnapshot(this.getCol('orders'), (snap) => {
+                    const items = []; snap.forEach(d => items.push({id: d.id, ...d.data()}));
+                    UI.renderOrders(items.sort((a,b) => (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)));
+                });
+            }
+        };
+
+        // GLOBAL ACTIONS
+        window.updateTaskStatus = async (id, status) => {
+            try { await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'tasks', id), { status }); } catch(e) { UI.toast('Error', 'error'); }
+        };
+        window.editTask = (task) => { UI.openModal('modal-tasks', task); };
+        window.delTask = async (id) => { if(confirm('¿Eliminar?')) await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'tasks', id)); };
+        window.delItem = async (col, id) => { if(confirm('¿Eliminar?')) await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', col, id)); };
+        window.delShared = async (col, id) => { if(confirm('¿Eliminar Global?')) await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', col, id)); };
+        
+        window.updateDelStatus = async (id, status) => {
+             await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'deliveries', id), { status });
+        };
+        window.advanceOrder = async (id, current) => {
+            const next = current === 'pending' ? 'ordered' : 'received';
+            await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'orders', id), { status: next });
+        };
+
+        window.handleChatImage = async (input) => {
+            const file = input.files[0];
+            if(!file) return;
+            UI.toast('Subiendo imagen...');
             try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                const storageRef = ref(storage, `chat/${Date.now()}_${file.name}`);
+                const snap = await uploadBytes(storageRef, file);
+                const url = await getDownloadURL(snap.ref);
+                await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'chat'), { 
+                    type: 'image', url, sender: State.user.uid, 
+                    branch: State.branch,
+                    createdAt: serverTimestamp() 
+                });
+                UI.toast('Enviado', 'success');
+            } catch(e) { UI.toast('Error subida', 'error'); }
+            input.value = '';
+        };
+
+        // EVENT BINDINGS FOR SAVING
+        document.getElementById('saveTaskBtn').onclick = async () => {
+            const id = document.getElementById('taskId').value;
+            const text = document.getElementById('taskInput').value.trim();
+            const assignee = document.getElementById('taskAssignee').value.trim();
+            const priority = document.getElementById('taskPriority').value;
+            const cycle = document.getElementById('taskCycle').value;
+            
+            if(!text) return UI.toast('Falta descripción', 'error');
+            UI.closeModal();
+
+            const data = { text, assignee, priority, cycle, branch: State.branch, updatedAt: serverTimestamp() };
+            
+            try {
+                if(id) {
+                    await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'tasks', id), data);
+                    UI.toast('Tarea actualizada', 'success');
+                } else {
+                    data.status = 'pending';
+                    data.createdAt = serverTimestamp();
+                    await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'tasks'), data);
+                    UI.toast('Tarea creada', 'success');
+                }
+            } catch(e) { console.error(e); UI.toast('Error', 'error'); }
+        };
+
+        document.getElementById('saveOrderBtn').onclick = async () => {
+             const item = document.getElementById('orderItem').value;
+             if(!item) return;
+             UI.closeModal();
+             await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'orders'), {
+                 item,
+                 amount: document.getElementById('orderAmount').value,
+                 requester: document.getElementById('orderRequester').value,
+                 notes: document.getElementById('orderNotes').value,
+                 branch: State.branch === 'centro' ? 'Centro' : 'Ejemplares',
+                 status: 'pending',
+                 createdAt: serverTimestamp()
+             });
+             document.getElementById('orderItem').value = '';
+             UI.toast('Pedido enviado', 'success');
+        };
+
+        document.getElementById('saveDelBtn').onclick = async () => {
+            const client = document.getElementById('delClient').value;
+            if(!client) return;
+            UI.closeModal();
+            await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'deliveries'), {
+                client,
+                phone: document.getElementById('delPhone').value,
+                items: document.getElementById('delItems').value,
+                when: document.getElementById('delWhen').value,
+                where: document.getElementById('delWhere').value,
+                status: 'pending',
+                branchOrigin: State.branch,
+                createdAt: serverTimestamp()
+            });
+            document.getElementById('delClient').value = '';
+            UI.toast('Reparto agendado', 'success');
+        };
+
+        document.getElementById('saveNoteBtn').onclick = async () => {
+            const content = document.getElementById('noteContent').value.trim();
+            if(!content) return;
+            UI.closeModal();
+            await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'notes'), {
+                content,
+                type: document.getElementById('noteType').value,
+                branch: State.branch,
+                createdAt: serverTimestamp()
+            });
+            document.getElementById('noteContent').value = '';
+        };
+
+        document.getElementById('saveProcBtn').onclick = async () => {
+            const title = document.getElementById('procTitle').value;
+            const steps = document.getElementById('procSteps').value;
+            if(!title) return;
+            UI.closeModal();
+            const color = document.querySelector('input[name="procColor"]:checked').value;
+            await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'procedures'), { title, steps, color, createdAt: serverTimestamp() });
+            document.getElementById('procTitle').value = '';
+            document.getElementById('procSteps').value = '';
+        };
+
+        document.getElementById('sendChatBtn').onclick = async () => {
+            const input = document.getElementById('chatTextInput');
+            const text = input.value.trim();
+            if(!text) return;
+            input.value = '';
+            await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'chat'), { 
+                type: 'text', text, sender: State.user.uid, 
+                branch: State.branch,
+                createdAt: serverTimestamp() 
+            });
+        };
+
+        // INIT
+        onAuthStateChanged(auth, async (user) => {
+            const ind = document.getElementById('connectionStatus');
+            const loading = document.getElementById('loadingIndicator');
+            
+            if (user) {
+                State.user = user;
+                ind.innerText = "Conectado · " + user.uid.slice(0,4);
+                loading.classList.remove('hidden');
+                Data.resubscribe();
+                // Fake loading delay removal
+                setTimeout(() => loading.classList.add('hidden'), 1000);
+            } else {
+                ind.innerText = "Desconectado";
+                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
                     await signInAnonymously(auth);
                 }
-            } catch (error) {
-                console.error("Auth failed", error);
-                showToast("Error de conexión. Recarga la página.", "error");
             }
-        };
-
-        // --- MODULES ---
-
-        // 1. TASKS MODULE
-        const initTasks = () => {
-            const listEl = document.getElementById('tasks-list');
-            const q = query(collection(db, getBranchPath('tasks')), orderBy('createdAt', 'desc'));
-            
-            onSnapshot(q, (snapshot) => {
-                listEl.innerHTML = '';
-                if (snapshot.empty) {
-                    listEl.innerHTML = `
-                        <div class="flex flex-col items-center justify-center text-gray-400 mt-12 opacity-60">
-                            <i class="fas fa-clipboard-check text-6xl mb-4 text-gray-300"></i>
-                            <p class="font-medium">Todo limpio por hoy</p>
-                            <p class="text-xs">Agrega tareas nuevas arriba</p>
-                        </div>`;
-                    return;
-                }
-                
-                snapshot.forEach(async (docSnap) => {
-                    const task = docSnap.data();
-                    
-                    if (task.completed && shouldResetTask(task)) {
-                        await updateDoc(doc(db, getBranchPath('tasks'), docSnap.id), {
-                            completed: false, completedBy: null, completedAt: null
-                        });
-                        return;
-                    }
-
-                    const priorityColors = {
-                        'urgente': 'border-l-4 border-red-500 bg-red-50',
-                        'alta': 'border-l-4 border-orange-400 bg-orange-50',
-                        'media': 'border-l-4 border-blue-400 bg-blue-50',
-                        'baja': 'border-l-4 border-gray-300 bg-white'
-                    };
-                    
-                    const freqIcons = {
-                        'daily': '<span class="text-purple-600 text-[10px] font-bold border border-purple-200 bg-purple-100 px-1 rounded flex items-center gap-1"><i class="fas fa-redo"></i> DIARIA</span>',
-                        'weekly': '<span class="text-indigo-600 text-[10px] font-bold border border-indigo-200 bg-indigo-100 px-1 rounded flex items-center gap-1"><i class="fas fa-calendar-week"></i> SEMANAL</span>',
-                        'monthly': '<span class="text-pink-600 text-[10px] font-bold border border-pink-200 bg-pink-100 px-1 rounded flex items-center gap-1"><i class="fas fa-calendar-alt"></i> MENSUAL</span>',
-                        '3months': '<span class="text-teal-600 text-[10px] font-bold border border-teal-200 bg-teal-100 px-1 rounded">TRIM.</span>',
-                        '6months': '<span class="text-amber-600 text-[10px] font-bold border border-amber-200 bg-amber-100 px-1 rounded">SEMES.</span>',
-                        'once': ''
-                    };
-
-                    const div = document.createElement('div');
-                    div.className = `p-3 rounded shadow-sm mb-3 flex items-start gap-3 bg-white ${priorityColors[task.priority] || 'bg-white'} transition-all active:scale-[0.99]`;
-                    
-                    div.innerHTML = `
-                        <div class="relative pt-1">
-                            <input type="checkbox" class="w-6 h-6 rounded border-gray-300 text-green-600 focus:ring-green-500 task-check cursor-pointer" 
-                                data-id="${docSnap.id}" ${task.completed ? 'checked' : ''}>
-                        </div>
-                        <div class="flex-grow">
-                            <div class="flex justify-between items-start">
-                                <p class="${task.completed ? 'line-through text-gray-400' : 'text-gray-800 font-medium'} text-base leading-snug break-words">${task.text}</p>
-                                <button class="text-gray-300 hover:text-blue-500 task-edit ml-2 p-1" data-id="${docSnap.id}" data-text="${task.text}">
-                                    <i class="fas fa-pencil-alt text-xs"></i>
-                                </button>
-                            </div>
-                            
-                            <div class="flex flex-wrap gap-2 text-xs text-gray-500 mt-1 items-center">
-                                ${freqIcons[task.frequency] || ''}
-                                <span class="uppercase tracking-wide text-[10px] font-semibold opacity-75">${task.priority}</span>
-                                ${task.completed && task.completedBy ? `<span class="ml-auto text-green-700 bg-green-50 px-2 py-0.5 rounded-full border border-green-100 flex items-center gap-1"><i class="fas fa-check-circle"></i> ${task.completedBy}</span>` : ''}
-                            </div>
-                        </div>
-                        <button class="text-gray-300 hover:text-red-500 task-delete pt-1 px-2" data-id="${docSnap.id}">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    `;
-                    listEl.appendChild(div);
-                });
-
-                listEl.querySelectorAll('.task-check').forEach(cb => {
-                    cb.addEventListener('change', async (e) => {
-                        const id = e.target.dataset.id;
-                        const isChecked = e.target.checked;
-                        await updateDoc(doc(db, getBranchPath('tasks'), id), { 
-                            completed: isChecked,
-                            completedBy: isChecked ? state.displayName : null,
-                            lastCompletedAt: isChecked ? serverTimestamp() : null
-                        });
-                    });
-                });
-                
-                listEl.querySelectorAll('.task-edit').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        const { id, text } = e.currentTarget.dataset;
-                        const newText = prompt("Editar tarea:", text);
-                        if (newText !== null && newText.trim() !== "") {
-                             updateDoc(doc(db, getBranchPath('tasks'), id), { text: newText });
-                        }
-                    });
-                });
-
-                listEl.querySelectorAll('.task-delete').forEach(btn => {
-                    btn.addEventListener('click', async (e) => {
-                        if(confirm('¿Borrar tarea permanentemente?')) {
-                            await deleteDoc(doc(db, getBranchPath('tasks'), e.currentTarget.dataset.id));
-                        }
-                    });
-                });
-            });
-
-            document.getElementById('task-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const text = document.getElementById('task-input').value;
-                const priority = document.getElementById('task-priority').value;
-                const frequency = document.getElementById('task-freq').value;
-                
-                if(!text.trim()) return;
-
-                try {
-                    await addDoc(collection(db, getBranchPath('tasks')), {
-                        text, priority, frequency, completed: false, createdAt: serverTimestamp()
-                    });
-                    document.getElementById('task-input').value = ''; 
-                    showToast("Tarea añadida", "success");
-                } catch(err) { showToast("Error al guardar", "error"); }
-            });
-        };
-
-        // 2. DELIVERIES MODULE
-        const initRepartos = () => {
-            const listEl = document.getElementById('repartos-list');
-            const q = query(collection(db, getGlobalPath('repartos')), orderBy('createdAt', 'desc'));
-
-            onSnapshot(q, (snapshot) => {
-                const count = snapshot.docs.length;
-                DOM.repartosBadge.textContent = count > 0 ? count : '';
-                DOM.repartosBadge.style.display = count > 0 ? 'flex' : 'none';
-
-                listEl.innerHTML = '';
-                if(snapshot.empty) {
-                    listEl.innerHTML = `<div class="text-center text-gray-400 mt-12 opacity-60"><i class="fas fa-truck text-5xl mb-3"></i><p>Sin repartos pendientes</p></div>`;
-                }
-
-                snapshot.forEach(docSnap => {
-                    const r = docSnap.data();
-                    const div = document.createElement('div');
-                    div.className = "bg-white p-4 rounded-lg shadow-sm border-l-4 border-indigo-500 mb-3 active:scale-[0.99] transition-transform";
-                    div.innerHTML = `
-                        <div class="flex justify-between items-start mb-2">
-                            <h3 class="font-bold text-gray-800 text-lg">${r.client}</h3>
-                            <span class="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded-full font-bold">${r.when}</span>
-                        </div>
-                        <div class="text-sm text-gray-600 space-y-2">
-                            <p class="flex items-start gap-2"><i class="fas fa-box-open mt-1 text-indigo-400"></i> <span class="font-medium text-gray-800">${r.order}</span></p>
-                            <p class="flex items-start gap-2"><i class="fas fa-map-marker-alt mt-1 text-red-400"></i> ${r.address}</p>
-                            <div class="flex gap-2 mt-2">
-                                <a href="tel:${r.phone}" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-center py-2 rounded rounded-lg text-xs font-bold transition-colors">
-                                    <i class="fas fa-phone mr-1"></i> LLAMAR
-                                </a>
-                                <a href="https://wa.me/${r.phone.replace(/[^0-9]/g,'')}" target="_blank" class="flex-1 bg-green-100 hover:bg-green-200 text-green-700 text-center py-2 rounded rounded-lg text-xs font-bold transition-colors">
-                                    <i class="fab fa-whatsapp mr-1"></i> WHATSAPP
-                                </a>
-                            </div>
-                        </div>
-                        <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
-                            <span class="text-[10px] text-gray-400">Por: ${r.createdBy || 'Sistema'}</span>
-                            <button class="text-green-600 hover:text-green-800 text-sm font-bold bg-green-50 px-3 py-1.5 rounded-full border border-green-100 complete-reparto" data-id="${docSnap.id}">
-                                <i class="fas fa-check-circle mr-1"></i> Entregado
-                            </button>
-                        </div>
-                    `;
-                    listEl.appendChild(div);
-                });
-
-                listEl.querySelectorAll('.complete-reparto').forEach(btn => {
-                    btn.addEventListener('click', async (e) => {
-                         if(confirm(`¿Pedido entregado?`)) {
-                            await deleteDoc(doc(db, getGlobalPath('repartos'), e.currentTarget.dataset.id));
-                            showToast("Reparto completado", "success");
-                         }
-                    });
-                });
-            });
-
-            // Modal
-            const modal = document.getElementById('reparto-modal');
-            document.getElementById('add-reparto-btn').onclick = () => modal.classList.remove('hidden');
-            document.getElementById('cancel-reparto').onclick = () => modal.classList.add('hidden');
-
-            document.getElementById('reparto-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                // Simple validation to prevent layout breakage
-                const formData = {
-                    client: document.getElementById('r-client').value,
-                    phone: document.getElementById('r-phone').value,
-                    order: document.getElementById('r-order').value,
-                    address: document.getElementById('r-address').value,
-                    when: document.getElementById('r-when').value,
-                    createdBy: state.displayName,
-                    createdAt: serverTimestamp()
-                };
-                
-                try {
-                    await addDoc(collection(db, getGlobalPath('repartos')), formData);
-                    modal.classList.add('hidden');
-                    e.target.reset();
-                    showToast("Reparto agendado", "success");
-                } catch(err) { showToast("Error al guardar", "error"); }
-            });
-        };
-
-        // 3. NOTES MODULE
-        const initNotes = () => {
-            const container = document.getElementById('notes-container');
-            const q = query(collection(db, getBranchPath('notes')), orderBy('createdAt', 'desc'));
-
-            onSnapshot(q, (snapshot) => {
-                container.innerHTML = '';
-                 if(snapshot.empty) {
-                    container.innerHTML = `<div class="col-span-2 text-center text-gray-400 mt-12 opacity-60"><i class="fas fa-sticky-note text-5xl mb-3"></i><p>Pizarra vacía</p></div>`;
-                }
-
-                snapshot.forEach(docSnap => {
-                    const note = docSnap.data();
-                    const isCobro = note.type === 'cobro';
-                    const div = document.createElement('div');
-                    const rot = Math.random() * 4 - 2; 
-                    div.className = `p-4 shadow-md transition-transform active:scale-105 relative h-48 flex flex-col`;
-                    div.style.backgroundColor = isCobro ? '#fecaca' : '#fef08a'; 
-                    div.style.transform = `rotate(${rot}deg)`;
-                    div.style.fontFamily = '"Kalam", cursive';
-                    
-                    div.innerHTML = `
-                        <div class="absolute -top-2 left-1/2 transform -translate-x-1/2 w-8 h-8 bg-gray-200/50 rounded-full blur-sm"></div>
-                        <div class="absolute top-1 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-red-800 rounded-full shadow-sm z-10"></div>
-                        <h4 class="font-bold border-b border-black/10 pb-1 mb-2 ${isCobro ? 'text-red-900' : 'text-yellow-900'} text-sm">
-                            ${isCobro ? '💰 COLA DE COBRO' : '📢 COMUNICACIÓN'}
-                        </h4>
-                        <p class="text-lg leading-snug overflow-y-auto flex-grow break-words">${note.text}</p>
-                        <p class="text-[10px] text-right mt-1 opacity-60">~ ${note.author || 'Anón'}</p>
-                        <button class="absolute bottom-2 right-2 text-black/40 hover:text-black delete-note p-2" data-id="${docSnap.id}">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    `;
-                    container.appendChild(div);
-                });
-
-                container.querySelectorAll('.delete-note').forEach(btn => {
-                    btn.addEventListener('click', async(e) => deleteDoc(doc(db, getBranchPath('notes'), e.currentTarget.dataset.id)));
-                });
-            });
-
-            document.getElementById('add-note-btn').onclick = async () => {
-                const text = prompt("Escribe tu nota:");
-                if(!text) return;
-                const type = confirm("¿Es para Cola de Cobro? (Cancelar = Comunicación)") ? 'cobro' : 'comm';
-                await addDoc(collection(db, getBranchPath('notes')), { 
-                    text, type, author: state.displayName, createdAt: serverTimestamp() 
-                });
-            };
-        };
-
-        // 4. PROCEDURES MODULE
-        const initProcedures = () => {
-            const listEl = document.getElementById('procedures-list');
-            const q = query(collection(db, getGlobalPath('procedimientos')), orderBy('title'));
-
-            onSnapshot(q, (snapshot) => {
-                listEl.innerHTML = '';
-                snapshot.forEach(docSnap => {
-                    const proc = docSnap.data();
-                    const div = document.createElement('div');
-                    div.className = "bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden mb-3";
-                    const stepsHtml = (proc.steps || '').split('\n').map(s => `<li class="ml-4 list-disc text-gray-600 mb-1">${s}</li>`).join('');
-                    
-                    div.innerHTML = `
-                        <div class="bg-gray-50 px-4 py-3 border-b border-gray-100 flex justify-between items-center">
-                            <h3 class="font-bold text-gray-800">${proc.title}</h3>
-                            <span class="w-3 h-3 rounded-full shadow-sm" style="background-color: ${proc.color || '#3b82f6'}"></span>
-                        </div>
-                        <div class="p-4">
-                            <ul class="space-y-1 text-sm">
-                                ${stepsHtml}
-                            </ul>
-                        </div>
-                    `;
-                    listEl.appendChild(div);
-                });
-            });
-        };
-
-        // 5. CHAT MODULE
-        const initChat = () => {
-            const chatBox = document.getElementById('chat-box');
-            const q = query(collection(db, getBranchPath('chat')), orderBy('createdAt', 'desc'), limit(50));
-            const micBtn = document.getElementById('mic-btn');
-            const sendBtn = document.getElementById('send-msg-btn');
-            const msgInput = document.getElementById('msg-input');
-            const imgInput = document.getElementById('img-input');
-
-            onSnapshot(q, (snapshot) => {
-                chatBox.innerHTML = '';
-                const messages = [];
-                snapshot.forEach(d => messages.push({...d.data(), id: d.id}));
-                
-                messages.reverse().forEach(msg => {
-                    // Logic to determine "Me" vs "Others" based on Auth UID if available, or just display name as fallback context
-                    const isMe = msg.userId === (auth.currentUser?.uid || 'anon');
-                    
-                    const div = document.createElement('div');
-                    div.className = `flex w-full mb-4 ${isMe ? 'justify-end' : 'justify-start'}`;
-                    
-                    let content = '';
-                    if (msg.type === 'text') content = `<p class="break-words">${msg.content}</p>`;
-                    if (msg.type === 'image') content = `<img src="${msg.content}" class="rounded-lg max-w-[200px] border border-gray-200" loading="lazy" />`;
-                    if (msg.type === 'audio') content = `<audio controls src="${msg.content}" class="max-w-[200px] h-10"></audio>`;
-
-                    div.innerHTML = `
-                        <div class="max-w-[85%]">
-                             <div class="text-[10px] text-gray-400 mb-0.5 px-1 ${isMe ? 'text-right' : 'text-left'}">${msg.author || '...'}</div>
-                            <div class="${isMe ? 'bg-blue-600 text-white rounded-l-2xl rounded-tr-2xl' : 'bg-gray-100 text-gray-800 rounded-r-2xl rounded-tl-2xl'} p-3 shadow-sm text-sm">
-                                ${content}
-                                <div class="text-[9px] opacity-70 mt-1 text-right">${msg.createdAt?.toDate ? msg.createdAt.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}</div>
-                            </div>
-                        </div>
-                    `;
-                    chatBox.appendChild(div);
-                });
-                // Auto scroll to bottom
-                chatBox.scrollTop = chatBox.scrollHeight;
-            });
-
-            // Send
-            const sendMessage = async () => {
-                const txt = msgInput.value.trim();
-                if(!txt) return;
-                await addDoc(collection(db, getBranchPath('chat')), {
-                    type: 'text', content: txt, userId: auth.currentUser?.uid, author: state.displayName, createdAt: serverTimestamp()
-                });
-                msgInput.value = '';
-            };
-            sendBtn.onclick = sendMessage;
-            msgInput.addEventListener('keypress', (e) => e.key === 'Enter' && sendMessage());
-
-            // Image
-            document.getElementById('img-btn').onclick = () => imgInput.click();
-            imgInput.onchange = async (e) => {
-                const file = e.target.files[0];
-                if(!file) return;
-                
-                showToast("Subiendo...", "info");
-                try {
-                    const storageRef = ref(storage, `chat/${Date.now()}_${file.name}`);
-                    await uploadBytes(storageRef, file);
-                    const url = await getDownloadURL(storageRef);
-                    await addDoc(collection(db, getBranchPath('chat')), {
-                        type: 'image', content: url, userId: auth.currentUser?.uid, author: state.displayName, createdAt: serverTimestamp()
-                    });
-                    e.target.value = ''; 
-                } catch(err) { showToast("Error al subir", "error"); }
-            };
-
-            // PTT Logic
-            const handleStartRecording = async (e) => {
-                e.preventDefault();
-                micBtn.classList.add('bg-red-600', 'scale-125');
-                state.audioChunks = [];
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    state.audioStream = stream;
-                    state.mediaRecorder = new MediaRecorder(stream);
-                    state.mediaRecorder.ondataavailable = event => state.audioChunks.push(event.data);
-                    state.mediaRecorder.onstop = async () => {
-                        const audioBlob = new Blob(state.audioChunks, { type: 'audio/mp4' }); 
-                        const storageRef = ref(storage, `audio/${Date.now()}.mp4`);
-                        await uploadBytes(storageRef, audioBlob);
-                        const url = await getDownloadURL(storageRef);
-                        await addDoc(collection(db, getBranchPath('chat')), {
-                            type: 'audio', content: url, userId: auth.currentUser?.uid, author: state.displayName, createdAt: serverTimestamp()
-                        });
-                    };
-                    state.mediaRecorder.start();
-                    state.isRecording = true;
-                    showToast("Grabando...", "info");
-                } catch(err) {
-                    console.error(err);
-                    showToast("Micrófono bloqueado o HTTPS requerido", "error");
-                    micBtn.classList.remove('bg-red-600', 'scale-125');
-                }
-            };
-
-            const handleStopRecording = (e) => {
-                if(!state.isRecording) return;
-                e.preventDefault();
-                micBtn.classList.remove('bg-red-600', 'scale-125');
-                if(state.mediaRecorder && state.mediaRecorder.state !== 'inactive') {
-                    state.mediaRecorder.stop();
-                    state.audioStream.getTracks().forEach(track => track.stop());
-                }
-                state.isRecording = false;
-            };
-
-            micBtn.addEventListener('mousedown', handleStartRecording);
-            micBtn.addEventListener('mouseup', handleStopRecording);
-            micBtn.addEventListener('mouseleave', handleStopRecording);
-            micBtn.addEventListener('touchstart', handleStartRecording, {passive: false});
-            micBtn.addEventListener('touchend', handleStopRecording);
-        };
-
-        // --- UI & NAVIGATION ---
-        const initUI = () => {
-            DOM.branchLabel.textContent = state.branch.toUpperCase();
-            
-            // Branch
-            document.getElementById('branch-selector-btn').onclick = () => DOM.branchModal.classList.remove('hidden');
-            document.querySelectorAll('.select-branch-btn').forEach(btn => {
-                btn.onclick = () => {
-                    localStorage.setItem('jardin_branch', btn.dataset.branch);
-                    location.reload();
-                };
-            });
-            document.getElementById('close-branch-modal').onclick = () => DOM.branchModal.classList.add('hidden');
-
-            // User Profile
-            document.getElementById('user-profile-btn').onclick = () => {
-                document.getElementById('username-input').value = state.displayName;
-                DOM.userModal.classList.remove('hidden');
-            };
-            document.getElementById('close-user-modal').onclick = () => DOM.userModal.classList.add('hidden');
-            document.getElementById('save-user-btn').onclick = () => {
-                const newName = document.getElementById('username-input').value.trim();
-                if(newName) {
-                    state.displayName = newName;
-                    localStorage.setItem('jardin_username', newName);
-                    DOM.userModal.classList.add('hidden');
-                    showToast("Nombre guardado", "success");
-                }
-            };
-
-            // Swipe Logic
-            let touchStartX = 0;
-            let touchEndX = 0;
-            const contentArea = document.querySelector('main');
-            
-            contentArea.addEventListener('touchstart', e => touchStartX = e.changedTouches[0].screenX, {passive: true});
-            contentArea.addEventListener('touchend', e => {
-                touchEndX = e.changedTouches[0].screenX;
-                if (Math.abs(touchStartX - touchEndX) > 100) {
-                    const tabs = ['tasks', 'repartos', 'notes', 'procedimientos', 'chat'];
-                    const currentIdx = tabs.indexOf(state.currentTab);
-                    if (touchStartX > touchEndX && currentIdx < tabs.length - 1) switchTab(tabs[currentIdx + 1]); 
-                    if (touchStartX < touchEndX && currentIdx > 0) switchTab(tabs[currentIdx - 1]); 
-                }
-            }, {passive: true});
-
-            DOM.navBtns.forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
-        };
-
-        const switchTab = (tabId) => {
-            DOM.views.forEach(el => el.classList.add('hidden'));
-            document.getElementById(`view-${tabId}`).classList.remove('hidden');
-            DOM.navBtns.forEach(btn => {
-                const isActive = btn.dataset.tab === tabId;
-                btn.classList.toggle('text-blue-600', isActive);
-                btn.classList.toggle('text-gray-400', !isActive);
-                if(isActive) btn.classList.add('scale-110');
-                else btn.classList.remove('scale-110');
-            });
-            state.currentTab = tabId;
-            document.querySelector('main').scrollTo(0,0);
-        };
-
-        // --- STARTUP ---
-        window.addEventListener('load', async () => {
-            initUI();
-            await initAuth();
-            
-            onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    state.user = user;
-                    initTasks();
-                    initRepartos();
-                    initNotes();
-                    initProcedures();
-                    initChat();
-                    switchTab('tasks');
-                }
-            });
         });
 
+        UI.init();
     </script>
-    <style>
-        /* Mobile Scroll Physics & Standards */
-        html, body {
-            height: 100%;
-            overflow: hidden; /* Prevent body scroll, handle in main */
-            overscroll-behavior: none; /* No bounce on body */
-            -webkit-tap-highlight-color: transparent; /* No gray tap box */
-        }
-        main {
-            padding-bottom: env(safe-area-inset-bottom);
-            -webkit-overflow-scrolling: touch; /* iOS momentum scroll */
-            overscroll-behavior-y: contain; /* Prevent pull-to-refresh */
-        }
-        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-        
-        /* Clean Scrollbar */
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        
-        .no-select { user-select: none; -webkit-user-select: none; }
-        body { font-family: 'Inter', sans-serif; }
-    </style>
-</head>
-<body class="bg-gray-50 text-gray-800 fixed inset-0 flex flex-col">
-
-    <!-- HEADER -->
-    <header class="bg-white shadow-sm z-20 flex-none h-14 flex items-center justify-between px-4 sticky top-0">
-        <div class="flex items-center gap-2 cursor-pointer active:opacity-70 transition-opacity" id="branch-selector-btn">
-            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-sm">JS</div>
-            <div class="leading-tight">
-                <h1 class="font-bold text-gray-900 text-sm">Jardín OS</h1>
-                <p id="branch-label" class="text-[10px] text-gray-500 font-semibold tracking-wider">SUCURSAL</p>
-            </div>
-            <i class="fas fa-chevron-down text-xs text-gray-400 ml-1"></i>
-        </div>
-        <button id="user-profile-btn" class="w-9 h-9 rounded-full bg-gray-50 flex items-center justify-center text-blue-600 border border-gray-100 shadow-sm active:bg-blue-100 transition-colors">
-            <i class="fas fa-user-cog"></i>
-        </button>
-    </header>
-
-    <!-- MAIN CONTENT (Scrollable) -->
-    <main class="flex-grow overflow-y-auto relative bg-gray-50 w-full">
-        
-        <!-- 1. TASKS -->
-        <section id="view-tasks" class="view-section p-4 pb-32">
-            <form id="task-form" class="bg-white p-3 rounded-xl shadow-sm mb-4 border border-gray-100">
-                <div class="flex flex-col gap-2 mb-2">
-                    <input type="text" id="task-input" placeholder="Nueva tarea..." class="w-full bg-gray-50 border-0 rounded-lg px-3 py-3 text-base focus:ring-2 focus:ring-blue-500 outline-none" autocomplete="off">
-                </div>
-                <div class="flex gap-2 mb-2">
-                     <select id="task-priority" class="bg-gray-50 text-xs rounded-lg px-2 py-2 outline-none border border-gray-200 flex-1 h-9">
-                        <option value="media">Prioridad: Media</option>
-                        <option value="urgente">Prioridad: Urgente</option>
-                        <option value="alta">Prioridad: Alta</option>
-                        <option value="baja">Prioridad: Baja</option>
-                    </select>
-                    <select id="task-freq" class="bg-gray-50 text-xs rounded-lg px-2 py-2 outline-none border border-gray-200 flex-1 h-9">
-                        <option value="once">Solo una vez</option>
-                        <option value="daily">Repetir: Diaria</option>
-                        <option value="weekly">Repetir: Semanal</option>
-                        <option value="monthly">Repetir: Mensual</option>
-                        <option value="3months">Repetir: Cada 3 Meses</option>
-                        <option value="6months">Repetir: Cada 6 Meses</option>
-                    </select>
-                </div>
-                <button type="submit" class="w-full bg-blue-600 text-white px-4 py-3 rounded-lg text-sm font-bold hover:bg-blue-700 active:bg-blue-800 transition-colors mt-1 shadow-sm">
-                    <i class="fas fa-plus mr-1"></i> Agregar Tarea
-                </button>
-            </form>
-            <div id="tasks-list">
-                <div class="flex justify-center mt-10"><i class="fas fa-circle-notch fa-spin text-gray-300 text-2xl"></i></div>
-            </div>
-        </section>
-
-        <!-- 2. REPARTOS -->
-        <section id="view-repartos" class="view-section hidden p-4 pb-32">
-            <button id="add-reparto-btn" class="w-full bg-indigo-600 text-white py-4 rounded-xl shadow-md font-bold mb-4 flex items-center justify-center gap-2 active:scale-[0.98] transition-transform">
-                <i class="fas fa-plus"></i> Nuevo Reparto
-            </button>
-            <div id="repartos-list"></div>
-        </section>
-
-        <!-- 3. NOTES -->
-        <section id="view-notes" class="view-section hidden p-4 pb-32">
-            <button id="add-note-btn" class="w-full border-2 border-dashed border-gray-300 text-gray-400 py-4 rounded-xl font-bold mb-6 hover:border-gray-400 hover:text-gray-500 active:bg-gray-50 transition-all">
-                <i class="fas fa-plus mr-1"></i> Nueva Nota Adhesiva
-            </button>
-            <div id="notes-container" class="grid grid-cols-2 gap-4"></div>
-        </section>
-
-        <!-- 4. PROCEDURES -->
-        <section id="view-procedimientos" class="view-section hidden p-4 pb-32">
-            <div class="mb-4 bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center gap-3">
-                <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600"><i class="fas fa-book-open"></i></div>
-                <div>
-                    <h2 class="text-lg font-bold text-blue-800 leading-tight">Manual Operativo</h2>
-                    <p class="text-xs text-blue-600">Guía rápida de procedimientos</p>
-                </div>
-            </div>
-            <div id="procedures-list" class="space-y-4"></div>
-        </section>
-
-        <!-- 5. CHAT -->
-        <section id="view-chat" class="view-section hidden flex flex-col h-full">
-            <div id="chat-box" class="flex-grow overflow-y-auto p-4 space-y-3 pb-32"></div>
-            
-            <div class="absolute bottom-16 left-0 right-0 bg-white border-t border-gray-200 px-3 py-2 flex items-center gap-2 z-30 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-                <button id="img-btn" class="text-gray-400 hover:text-blue-600 p-3 active:scale-95 transition-transform"><i class="fas fa-image text-xl"></i></button>
-                <input type="file" id="img-input" accept="image/*" class="hidden">
-                <input type="text" id="msg-input" placeholder="Mensaje..." class="flex-grow bg-gray-100 border-0 rounded-full px-5 py-3 text-base focus:ring-2 focus:ring-blue-500 outline-none">
-                <button id="mic-btn" class="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg transition-all duration-150 no-select" oncontextmenu="return false;">
-                    <i class="fas fa-microphone text-xl"></i>
-                </button>
-                <button id="send-msg-btn" class="hidden text-blue-600 font-bold px-2">Enviar</button>
-            </div>
-        </section>
-    </main>
-
-    <!-- NAV BAR -->
-    <nav class="flex-none bg-white border-t border-gray-200 h-16 flex justify-around items-center z-40 pb-safe fixed bottom-0 w-full shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-        <button class="nav-btn flex flex-col items-center gap-1 p-2 w-full transition-transform" data-tab="tasks">
-            <i class="fas fa-tasks text-xl mb-0.5"></i><span class="text-[10px] font-bold">Tareas</span>
-        </button>
-        <button class="nav-btn flex flex-col items-center gap-1 p-2 w-full transition-transform relative" data-tab="repartos">
-            <div id="repartos-badge" class="hidden absolute top-1 right-3 w-4 h-4 bg-red-500 text-white text-[9px] rounded-full flex items-center justify-center font-bold border border-white">0</div>
-            <i class="fas fa-truck text-xl mb-0.5"></i><span class="text-[10px] font-bold">Repartos</span>
-        </button>
-        <button class="nav-btn flex flex-col items-center gap-1 p-2 w-full transition-transform" data-tab="notes">
-            <i class="fas fa-sticky-note text-xl mb-0.5"></i><span class="text-[10px] font-bold">Notas</span>
-        </button>
-        <button class="nav-btn flex flex-col items-center gap-1 p-2 w-full transition-transform" data-tab="procedimientos">
-            <i class="fas fa-book text-xl mb-0.5"></i><span class="text-[10px] font-bold">Guía</span>
-        </button>
-        <button class="nav-btn flex flex-col items-center gap-1 p-2 w-full transition-transform" data-tab="chat">
-            <i class="fas fa-comments text-xl mb-0.5"></i><span class="text-[10px] font-bold">Radio</span>
-        </button>
-    </nav>
-
-    <!-- MODALS -->
-    <!-- Reparto Modal -->
-    <div id="reparto-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-[fadeIn_0.2s_ease-out]">
-            <h3 class="text-xl font-bold mb-4 text-gray-800">Nuevo Reparto</h3>
-            <form id="reparto-form" class="space-y-4">
-                <div>
-                    <label class="text-xs font-bold text-gray-500 uppercase ml-1">Cliente</label>
-                    <input id="r-client" type="text" placeholder="Nombre del cliente" class="w-full bg-gray-50 border rounded-lg p-3 text-base outline-none focus:ring-2 focus:ring-indigo-500" required>
-                </div>
-                <div>
-                    <label class="text-xs font-bold text-gray-500 uppercase ml-1">Teléfono</label>
-                    <input id="r-phone" type="tel" placeholder="Whatsapp / Celular" class="w-full bg-gray-50 border rounded-lg p-3 text-base outline-none focus:ring-2 focus:ring-indigo-500" required>
-                </div>
-                <div>
-                    <label class="text-xs font-bold text-gray-500 uppercase ml-1">Pedido</label>
-                    <textarea id="r-order" placeholder="¿Qué pidió?" class="w-full bg-gray-50 border rounded-lg p-3 text-base outline-none focus:ring-2 focus:ring-indigo-500" rows="2" required></textarea>
-                </div>
-                <div>
-                     <label class="text-xs font-bold text-gray-500 uppercase ml-1">Dirección</label>
-                    <input id="r-address" type="text" placeholder="Calle, número, ref..." class="w-full bg-gray-50 border rounded-lg p-3 text-base outline-none focus:ring-2 focus:ring-indigo-500" required>
-                </div>
-                <div>
-                     <label class="text-xs font-bold text-gray-500 uppercase ml-1">Horario</label>
-                    <input id="r-when" type="text" placeholder="Ej: Hoy 14hs" class="w-full bg-gray-50 border rounded-lg p-3 text-base outline-none focus:ring-2 focus:ring-indigo-500" required>
-                </div>
-                
-                <div class="flex gap-3 mt-6">
-                    <button type="button" id="cancel-reparto" class="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold active:bg-gray-200">Cancelar</button>
-                    <button type="submit" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold active:bg-indigo-700 shadow-md">Guardar</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Branch Modal -->
-    <div id="branch-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-2xl w-full max-w-sm p-6 text-center shadow-2xl">
-            <h3 class="text-lg font-bold text-gray-800 mb-6">Selecciona Sucursal</h3>
-            <div class="grid gap-4">
-                <button class="select-branch-btn bg-blue-50 text-blue-700 py-4 rounded-xl font-bold border border-blue-200 hover:bg-blue-100 active:scale-95 transition-all shadow-sm" data-branch="centro">
-                    🏢 CENTRO
-                </button>
-                <button class="select-branch-btn bg-green-50 text-green-700 py-4 rounded-xl font-bold border border-green-200 hover:bg-green-100 active:scale-95 transition-all shadow-sm" data-branch="ejemplares">
-                    🌲 EJEMPLARES
-                </button>
-            </div>
-            <button id="close-branch-modal" class="mt-8 text-sm text-gray-400 font-medium underline p-2">Cerrar</button>
-        </div>
-    </div>
-
-    <!-- User Profile Modal -->
-    <div id="user-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
-            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-2xl mx-auto mb-4">
-                <i class="fas fa-user"></i>
-            </div>
-            <h3 class="text-lg font-bold text-gray-800 mb-2 text-center">¿Quién eres?</h3>
-            <p class="text-sm text-gray-500 mb-6 text-center px-4">Este nombre aparecerá cuando completes tareas o envíes mensajes.</p>
-            <input type="text" id="username-input" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 mb-4 text-center font-medium focus:ring-2 focus:ring-blue-500 outline-none text-lg" placeholder="Tu Nombre">
-            <button id="save-user-btn" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold active:bg-blue-700 shadow-md">Guardar Nombre</button>
-            <button id="close-user-modal" class="w-full text-center text-gray-400 mt-4 text-sm font-medium">Cancelar</button>
-        </div>
-    </div>
-
-    <!-- Toast Container -->
-    <div id="toast-container" class="fixed top-4 left-0 right-0 flex flex-col items-center pointer-events-none px-4 z-[100]"></div>
-
 </body>
 </html>
