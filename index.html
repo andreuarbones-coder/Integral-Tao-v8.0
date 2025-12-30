@@ -689,6 +689,7 @@
                 return `<div class="flex flex-col items-center justify-center py-10 opacity-40 gap-3"><i class="fas fa-${icon} text-4xl"></i><p>${text}</p></div>`;
             }
         };
+        window.UI = UI; // Expose to global scope for HTML event handlers
 
         // DATA MANAGER
         const Data = {
