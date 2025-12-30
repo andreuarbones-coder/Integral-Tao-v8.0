@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Jardín OS v8 Titanium</title>
+    <title>Jardín OS v8.3</title>
     
     <!-- === MANIFIESTO PWA === -->
     <link rel="manifest" href='data:application/manifest+json,{"name":"Jardín OS","short_name":"Jardín OS","start_url":".","display":"standalone","background_color":"#1e293b","theme_color":"#0f172a","description":"Gestión Integral de Vivero","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/1598/1598196.png","sizes":"192x192","type":"image/png"}]}'>
@@ -17,14 +17,14 @@
     <!-- Librerías -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
     <!-- Configuración Tailwind -->
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    fontFamily: { sans: ['Inter', 'sans-serif'], handwriting: ['Kalam', 'cursive'] },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
                     colors: {
                         theme: {
                             centro: '#064e3b', centroLight: '#34d399',
@@ -91,7 +91,7 @@
                 </div>
                 <div>
                     <h2 class="font-bold text-lg leading-tight">Jardín OS</h2>
-                    <p class="text-xs opacity-80 font-mono">v8.0 Titanium</p>
+                    <p class="text-xs opacity-80 font-mono">v8.3</p>
                 </div>
             </div>
             <div class="mt-4 pt-4 border-t border-white/20">
@@ -108,6 +108,7 @@
                 <li><button onclick="UI.nav('tasks')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-50 flex items-center gap-4 text-slate-600 font-medium border-l-4 border-transparent active-nav"><i class="fas fa-tasks w-5"></i> Tareas</button></li>
                 <li><button onclick="UI.nav('orders')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-50 flex items-center gap-4 text-slate-600 font-medium border-l-4 border-transparent"><i class="fas fa-shopping-basket w-5"></i> Pedidos <span id="badgeOrders" class="hidden bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full ml-auto">!</span></button></li>
                 <li><button onclick="UI.nav('delivery')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-50 flex items-center gap-4 text-slate-600 font-medium border-l-4 border-transparent"><i class="fas fa-truck w-5"></i> Repartos <span id="badgeDelivery" class="hidden bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full ml-auto">!</span></button></li>
+                <li><button onclick="UI.nav('scripts')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-50 flex items-center gap-4 text-slate-600 font-medium border-l-4 border-transparent"><i class="fas fa-comment-dots w-5"></i> Scripts Venta</button></li>
                 <li><button onclick="UI.nav('procedures')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-50 flex items-center gap-4 text-slate-600 font-medium border-l-4 border-transparent"><i class="fas fa-book w-5"></i> Procesos</button></li>
                 <li><button onclick="UI.nav('notes')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-50 flex items-center gap-4 text-slate-600 font-medium border-l-4 border-transparent"><i class="fas fa-sticky-note w-5"></i> Notas</button></li>
                 <li><button onclick="UI.nav('stock')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-50 flex items-center gap-4 text-slate-600 font-medium border-l-4 border-transparent"><i class="fas fa-cubes w-5"></i> Stock</button></li>
@@ -116,8 +117,8 @@
         </nav>
 
         <div class="p-4 border-t border-slate-100">
-            <button id="wakeLockBtn" class="w-full py-2 px-3 rounded-lg bg-slate-100 text-slate-500 text-xs font-bold flex items-center justify-center gap-2">
-                <i class="far fa-lightbulb"></i> <span>Pantalla: Normal</span>
+            <button id="wakeLockBtn" class="w-full py-2 px-3 rounded-lg bg-slate-100 text-slate-500 text-xs font-bold flex items-center justify-center gap-2 transition-colors">
+                <i class="far fa-moon"></i> <span>Pantalla: Automática</span>
             </button>
             <div class="text-center mt-2 text-[10px] text-slate-400" id="connectionStatus">Conectado</div>
         </div>
@@ -138,7 +139,6 @@
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                 <!-- Status icons/indicators can go here -->
                  <div id="loadingIndicator" class="hidden spinner border-white/30 border-l-white"></div>
             </div>
         </header>
@@ -149,7 +149,6 @@
             <!-- VIEW: TASKS -->
             <div id="view-tasks" class="view-section scroll-area p-4">
                 <div id="taskList" class="space-y-3 pb-24">
-                    <!-- Skeleton -->
                     <div class="animate-pulse bg-white h-24 rounded-xl"></div>
                 </div>
             </div>
@@ -165,6 +164,15 @@
             <!-- VIEW: DELIVERY -->
             <div id="view-delivery" class="view-section scroll-area hidden p-4">
                 <div id="deliveryList" class="space-y-4 pb-24"></div>
+            </div>
+
+            <!-- VIEW: SCRIPTS (NUEVO) -->
+            <div id="view-scripts" class="view-section scroll-area hidden p-4">
+                <div class="bg-purple-50 text-purple-800 text-sm p-3 rounded-xl mb-4 border border-purple-200 flex gap-2 items-center">
+                    <i class="fas fa-lightbulb text-lg"></i>
+                    <span>Toca el botón copiar para usar estos guiones en tus chats de venta.</span>
+                </div>
+                <div id="scriptsList" class="space-y-4 pb-24"></div>
             </div>
 
             <!-- VIEW: NOTES -->
@@ -211,6 +219,19 @@
     <!-- === MODALS === -->
     <div id="modalOverlay" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center sm:p-4 backdrop-blur-sm">
         
+        <!-- MODAL: NAME SETUP -->
+        <div id="modal-username" class="bg-white w-full sm:max-w-xs sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden hidden transform transition-transform duration-300 z-50">
+            <div class="p-6 text-center">
+                <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                    <i class="fas fa-user"></i>
+                </div>
+                <h2 class="text-xl font-bold text-slate-800 mb-2">¡Hola!</h2>
+                <p class="text-slate-500 text-sm mb-4">Para que el equipo sepa quién eres, por favor ingresa tu primer nombre.</p>
+                <input type="text" id="usernameInput" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-center font-bold mb-4" placeholder="Tu Nombre">
+                <button id="saveUsernameBtn" class="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold shadow-lg">Comenzar</button>
+            </div>
+        </div>
+
         <!-- MODAL: TASK (CREATE/EDIT) -->
         <div id="modal-tasks" class="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden hidden transform transition-transform duration-300 translate-y-full sm:translate-y-0">
             <div class="p-5">
@@ -218,7 +239,7 @@
                     <h2 class="text-xl font-bold text-slate-800" id="taskModalTitle">Nueva Tarea</h2>
                     <button class="modal-close text-slate-400"><i class="fas fa-times"></i></button>
                 </div>
-                <input type="hidden" id="taskId"> <!-- For edits -->
+                <input type="hidden" id="taskId">
                 <div class="space-y-4">
                     <input type="text" id="taskInput" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none focus:border-emerald-500 font-medium" placeholder="Descripción de la tarea">
                     <div class="grid grid-cols-2 gap-3">
@@ -231,7 +252,7 @@
                         </select>
                     </div>
                     <div>
-                        <label class="text-xs font-bold text-slate-400 uppercase ml-1">Repetición (Ciclo)</label>
+                        <label class="text-xs font-bold text-slate-400 uppercase ml-1">Repetición</label>
                         <div class="flex items-center gap-2 mt-1 bg-slate-50 p-2 rounded-xl border border-slate-200">
                             <div class="bg-indigo-100 text-indigo-600 w-8 h-8 rounded-lg flex items-center justify-center"><i class="fas fa-sync-alt"></i></div>
                             <select id="taskCycle" class="bg-transparent w-full outline-none text-sm font-medium text-slate-700">
@@ -250,17 +271,20 @@
 
         <!-- MODAL: ORDER (PEDIDOS) -->
         <div id="modal-orders" class="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden hidden transform transition-transform duration-300 translate-y-full sm:translate-y-0">
-            <div class="p-5">
-                <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fas fa-shopping-basket text-blue-600"></i> Nuevo Pedido</h2>
-                <div class="space-y-3">
-                    <input type="text" id="orderItem" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none font-bold" placeholder="¿Qué necesitamos?">
-                    <div class="grid grid-cols-2 gap-3">
-                        <input type="text" id="orderAmount" class="p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none" placeholder="Cantidad">
-                        <input type="text" id="orderRequester" class="p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none" placeholder="¿Quién pide?">
-                    </div>
-                    <textarea id="orderNotes" rows="2" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm" placeholder="Detalles adicionales (marca, modelo, etc)"></textarea>
+            <div class="p-5 flex flex-col h-[80vh] sm:h-auto">
+                <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2 flex-none"><i class="fas fa-shopping-basket text-blue-600"></i> Nuevo Pedido</h2>
+                
+                <div class="flex-grow overflow-y-auto pr-2 space-y-2 mb-4" id="orderItemsContainer">
+                    <!-- Dynamic Rows -->
                 </div>
-                <button id="saveOrderBtn" class="w-full mt-6 py-3.5 bg-blue-600 text-white rounded-xl shadow-lg font-bold active:scale-95">Solicitar</button>
+                
+                <button onclick="window.addOrderRow()" class="mb-4 py-2 px-4 rounded-lg border-2 border-dashed border-slate-300 text-slate-500 font-bold hover:border-blue-400 hover:text-blue-500 transition-colors w-full">+ Agregar Ítem</button>
+
+                <div class="flex-none space-y-3">
+                    <input type="text" id="orderRequester" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm" placeholder="¿Quién solicita?">
+                    <textarea id="orderNotes" rows="2" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm" placeholder="Notas del pedido (opcional)"></textarea>
+                    <button id="saveOrderBtn" class="w-full py-3.5 bg-blue-600 text-white rounded-xl shadow-lg font-bold active:scale-95">Enviar Solicitud</button>
+                </div>
             </div>
         </div>
 
@@ -281,12 +305,24 @@
             </div>
         </div>
 
+        <!-- MODAL: SCRIPT (NUEVO) -->
+        <div id="modal-scripts" class="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden hidden transform transition-transform duration-300 translate-y-full sm:translate-y-0">
+            <div class="p-5">
+                <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fas fa-comment-dots text-purple-600"></i> Nuevo Script</h2>
+                <div class="space-y-4">
+                    <input type="text" id="scriptTitle" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none font-bold" placeholder="Título (ej: Saludo Inicial)">
+                    <textarea id="scriptContent" rows="6" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm leading-relaxed" placeholder="Escribe el guion aquí..."></textarea>
+                </div>
+                <button id="saveScriptBtn" class="w-full mt-6 py-3.5 bg-purple-600 text-white rounded-xl shadow-lg font-bold active:scale-95">Guardar Guion</button>
+            </div>
+        </div>
+
          <!-- MODAL: NOTES -->
         <div id="modal-notes" class="bg-yellow-50 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl border-t-4 border-yellow-400 hidden transform transition-transform duration-300 translate-y-full sm:translate-y-0">
             <div class="p-5">
                 <h2 class="text-xl font-bold text-yellow-800 mb-4">Nueva Nota</h2>
                 <select id="noteType" class="w-full p-2 mb-4 bg-yellow-100 border-none rounded text-yellow-900 font-bold"><option value="normal">General</option><option value="billing">Cobranza $$</option></select>
-                <textarea id="noteContent" rows="6" class="w-full bg-transparent text-xl font-handwriting placeholder-yellow-800/30 outline-none" placeholder="Escribe aquí..."></textarea>
+                <textarea id="noteContent" rows="6" class="w-full bg-transparent text-xl text-slate-700 placeholder-yellow-800/30 outline-none leading-relaxed" placeholder="Escribe aquí..."></textarea>
                 <div class="flex gap-2 mt-4">
                     <button class="modal-close flex-1 py-3 text-yellow-700 font-bold">Cancelar</button>
                     <button id="saveNoteBtn" class="flex-1 py-3 bg-yellow-400 text-yellow-900 rounded-xl font-bold shadow-sm">Pegar Nota</button>
@@ -300,11 +336,14 @@
                 <h2 class="text-xl font-bold text-slate-800 mb-4">Nuevo Proceso</h2>
                 <input type="text" id="procTitle" class="w-full p-3 mb-3 bg-slate-50 rounded-xl border border-slate-200 outline-none font-bold" placeholder="Título del Protocolo">
                 <textarea id="procSteps" rows="5" class="w-full p-3 mb-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm" placeholder="- Paso 1&#10;- Paso 2..."></textarea>
-                <div class="flex justify-between mb-6 px-2">
-                    <label><input type="radio" name="procColor" value="blue" checked class="accent-blue-500 w-5 h-5"></label>
-                    <label><input type="radio" name="procColor" value="green" class="accent-emerald-500 w-5 h-5"></label>
-                    <label><input type="radio" name="procColor" value="red" class="accent-red-500 w-5 h-5"></label>
-                    <label><input type="radio" name="procColor" value="purple" class="accent-purple-500 w-5 h-5"></label>
+                <div class="flex flex-wrap justify-between gap-2 mb-6 px-2">
+                    <label class="cursor-pointer"><input type="radio" name="procColor" value="blue" checked class="peer sr-only"><div class="w-8 h-8 rounded-full bg-blue-500 border-2 border-transparent peer-checked:ring-2 peer-checked:ring-offset-2 ring-blue-400"></div></label>
+                    <label class="cursor-pointer"><input type="radio" name="procColor" value="green" class="peer sr-only"><div class="w-8 h-8 rounded-full bg-emerald-500 border-2 border-transparent peer-checked:ring-2 peer-checked:ring-offset-2 ring-emerald-400"></div></label>
+                    <label class="cursor-pointer"><input type="radio" name="procColor" value="red" class="peer sr-only"><div class="w-8 h-8 rounded-full bg-red-500 border-2 border-transparent peer-checked:ring-2 peer-checked:ring-offset-2 ring-red-400"></div></label>
+                    <label class="cursor-pointer"><input type="radio" name="procColor" value="purple" class="peer sr-only"><div class="w-8 h-8 rounded-full bg-purple-500 border-2 border-transparent peer-checked:ring-2 peer-checked:ring-offset-2 ring-purple-400"></div></label>
+                    <label class="cursor-pointer"><input type="radio" name="procColor" value="pink" class="peer sr-only"><div class="w-8 h-8 rounded-full bg-pink-500 border-2 border-transparent peer-checked:ring-2 peer-checked:ring-offset-2 ring-pink-400"></div></label>
+                    <label class="cursor-pointer"><input type="radio" name="procColor" value="teal" class="peer sr-only"><div class="w-8 h-8 rounded-full bg-teal-500 border-2 border-transparent peer-checked:ring-2 peer-checked:ring-offset-2 ring-teal-400"></div></label>
+                    <label class="cursor-pointer"><input type="radio" name="procColor" value="slate" class="peer sr-only"><div class="w-8 h-8 rounded-full bg-slate-600 border-2 border-transparent peer-checked:ring-2 peer-checked:ring-offset-2 ring-slate-400"></div></label>
                 </div>
                 <button id="saveProcBtn" class="w-full py-3 bg-slate-800 text-white rounded-xl font-bold">Guardar Protocolo</button>
             </div>
@@ -336,8 +375,10 @@
         // STATE
         const State = {
             user: null,
+            username: localStorage.getItem('jardin_username') || '',
             branch: localStorage.getItem('tao_branch') || 'centro',
             view: 'tasks',
+            wakeLock: null,
             listeners: {}
         };
 
@@ -348,11 +389,30 @@
                 this.nav('tasks');
                 document.getElementById('currentDate').innerText = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' });
                 
+                // Username Check
+                if (!State.username) {
+                    setTimeout(() => {
+                        const modal = document.getElementById('modal-username');
+                        modal.classList.remove('hidden');
+                    }, 500);
+                }
+
                 // Event Listeners
                 document.getElementById('branchToggleBtn').onclick = () => this.toggleBranch();
                 document.querySelectorAll('.modal-close').forEach(b => b.onclick = () => this.closeModal());
                 document.getElementById('modalOverlay').onclick = (e) => { if(e.target === document.getElementById('modalOverlay')) this.closeModal(); };
                 document.getElementById('mainFab').onclick = () => this.handleFab();
+                
+                document.getElementById('wakeLockBtn').onclick = () => this.toggleWakeLock();
+                document.getElementById('saveUsernameBtn').onclick = () => {
+                    const name = document.getElementById('usernameInput').value.trim();
+                    if(name) {
+                        localStorage.setItem('jardin_username', name);
+                        State.username = name;
+                        document.getElementById('modal-username').classList.add('hidden');
+                        this.toast(`Bienvenido, ${name}`);
+                    }
+                };
             },
 
             setBranch(branch) {
@@ -382,7 +442,6 @@
                 const overlay = document.getElementById('sidebarOverlay');
                 if (show) {
                     overlay.classList.remove('hidden');
-                    // Force reflow
                     void overlay.offsetWidth; 
                     overlay.classList.remove('opacity-0');
                     sidebar.classList.remove('-translate-x-full');
@@ -392,12 +451,30 @@
                     setTimeout(() => overlay.classList.add('hidden'), 300);
                 }
             },
+            
+            async toggleWakeLock() {
+                const btn = document.getElementById('wakeLockBtn');
+                try {
+                    if (State.wakeLock) {
+                        await State.wakeLock.release();
+                        State.wakeLock = null;
+                        btn.classList.remove('bg-emerald-100', 'text-emerald-700');
+                        btn.classList.add('bg-slate-100', 'text-slate-500');
+                        btn.innerHTML = '<i class="far fa-moon"></i> <span>Pantalla: Automática</span>';
+                        this.toast("Ahorro de energía activado");
+                    } else {
+                        State.wakeLock = await navigator.wakeLock.request('screen');
+                        btn.classList.remove('bg-slate-100', 'text-slate-500');
+                        btn.classList.add('bg-emerald-100', 'text-emerald-700');
+                        btn.innerHTML = '<i class="fas fa-sun"></i> <span>Mantener Pantalla: ON</span>';
+                        this.toast("Pantalla se mantendrá encendida");
+                    }
+                } catch(e) { this.toast("No soportado en este dispositivo", "error"); }
+            },
 
             nav(view) {
                 State.view = view;
                 this.toggleSidebar(false);
-                
-                // Update Sidebar Active State
                 document.querySelectorAll('.nav-item').forEach(el => {
                     el.classList.remove('active-nav', 'bg-slate-50', 'border-slate-500');
                     if (el.getAttribute('onclick').includes(view)) {
@@ -407,16 +484,12 @@
                         el.querySelector('i').style.color = '';
                     }
                 });
-
-                // Switch Views
                 document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
                 document.getElementById(`view-${view}`).classList.remove('hidden');
-
-                // Update Header
-                const titles = { tasks: 'Tareas', orders: 'Pedidos', delivery: 'Repartos', notes: 'Notas', procedures: 'Procesos', stock: 'Inventario', chat: 'Radio Frecuencia' };
+                
+                const titles = { tasks: 'Tareas', orders: 'Pedidos', delivery: 'Repartos', notes: 'Notas', procedures: 'Procesos', stock: 'Inventario', chat: 'Radio Frecuencia', scripts: 'Scripts Venta' };
                 document.getElementById('pageTitle').innerText = titles[view];
                 
-                // Chat Scroll
                 if(view === 'chat') this.scrollToBottom('chatList');
             },
 
@@ -425,14 +498,11 @@
                 const overlay = document.getElementById('modalOverlay');
                 overlay.classList.remove('hidden');
                 modal.classList.remove('hidden');
-                
-                // Animation
                 requestAnimationFrame(() => {
                     modal.classList.remove('translate-y-full');
                     if(window.innerWidth >= 640) modal.classList.remove('sm:translate-y-full');
                 });
 
-                // Logic specific for edits
                 if (id === 'modal-tasks') {
                     if (data) {
                         document.getElementById('taskModalTitle').innerText = "Editar Tarea";
@@ -445,20 +515,32 @@
                         document.getElementById('taskModalTitle').innerText = "Nueva Tarea";
                         document.getElementById('taskId').value = '';
                         document.getElementById('taskInput').value = '';
+                        document.getElementById('taskAssignee').value = State.username || '';
                         document.getElementById('taskCycle').value = 'none';
                     }
+                }
+                
+                if (id === 'modal-orders') {
+                    // Reset order modal
+                    document.getElementById('orderItemsContainer').innerHTML = '';
+                    window.addOrderRow(); // Add first row
+                    document.getElementById('orderRequester').value = State.username || '';
+                    document.getElementById('orderNotes').value = '';
+                }
+
+                if (id === 'modal-scripts') {
+                    document.getElementById('scriptTitle').value = '';
+                    document.getElementById('scriptContent').value = '';
                 }
             },
 
             closeModal() {
                 const overlay = document.getElementById('modalOverlay');
                 const openModals = document.querySelectorAll('#modalOverlay > div:not(.hidden)');
-                
                 openModals.forEach(m => {
                     m.classList.add('translate-y-full');
                     if(window.innerWidth >= 640) m.classList.add('sm:translate-y-full');
                 });
-                
                 setTimeout(() => {
                     overlay.classList.add('hidden');
                     openModals.forEach(m => m.classList.add('hidden'));
@@ -466,7 +548,7 @@
             },
 
             handleFab() {
-                const map = { tasks: 'modal-tasks', orders: 'modal-orders', delivery: 'modal-delivery', notes: 'modal-notes', procedures: 'modal-procedures' };
+                const map = { tasks: 'modal-tasks', orders: 'modal-orders', delivery: 'modal-delivery', notes: 'modal-notes', procedures: 'modal-procedures', scripts: 'modal-scripts' };
                 if (map[State.view]) this.openModal(map[State.view]);
             },
 
@@ -475,11 +557,9 @@
                 const el = document.createElement('div');
                 const colors = { info: 'text-blue-400', success: 'text-emerald-400', error: 'text-red-400' };
                 const icon = type === 'error' ? 'fa-exclamation-circle' : type === 'success' ? 'fa-check-circle' : 'fa-info-circle';
-                
                 el.className = 'toast';
                 el.innerHTML = `<i class="fas ${icon} ${colors[type]}"></i> <span>${msg}</span>`;
                 container.appendChild(el);
-                
                 setTimeout(() => {
                     el.style.opacity = '0';
                     el.style.transform = 'translateY(-10px)';
@@ -508,20 +588,38 @@
                     const div = document.createElement('div');
                     div.className = `bg-white rounded-xl p-4 shadow-sm border-l-4 ${prioColor[t.priority] || 'border-l-slate-300'} flex gap-3 transition-all ${isDone ? 'opacity-50' : ''}`;
                     
-                    let statusBtn = '';
-                    if (isDone) {
-                         statusBtn = `<button onclick="window.updateTaskStatus('${t.id}', 'pending')" class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-md"><i class="fas fa-check"></i></button>`;
-                    } else if (isPartial) {
-                         statusBtn = `<button onclick="window.updateTaskStatus('${t.id}', 'done')" class="w-8 h-8 rounded-full bg-amber-400 text-white flex items-center justify-center shadow-md animate-pulse"><i class="fas fa-hourglass-half"></i></button>`;
-                    } else {
-                         statusBtn = `<button onclick="window.updateTaskStatus('${t.id}', 'done')" class="w-8 h-8 rounded-full border-2 border-slate-300 text-transparent hover:border-emerald-400 transition-colors"></button>`;
-                    }
+                    // improved buttons
+                    const buttons = `
+                        <div class="flex flex-col gap-2 pt-1 border-l border-slate-100 pl-3">
+                            ${!isDone ? `
+                                <button onclick="window.updateTaskStatus('${t.id}', 'done')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-300 hover:bg-emerald-500 hover:text-white flex items-center justify-center transition-all shadow-sm active:scale-90" title="Completar">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                ${!isPartial ? `
+                                <button onclick="window.updateTaskStatus('${t.id}', 'partial')" class="w-8 h-8 rounded-full bg-slate-50 text-slate-300 hover:bg-amber-400 hover:text-white flex items-center justify-center transition-all active:scale-90" title="Marcar Incompleto">
+                                    <i class="fas fa-hourglass-half text-xs"></i>
+                                </button>
+                                ` : ''}
+                            ` : `
+                                <button onclick="window.updateTaskStatus('${t.id}', 'pending')" class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-md active:scale-90" title="Deshacer / Volver a Pendiente">
+                                    <i class="fas fa-undo"></i>
+                                </button>
+                            `}
+                            ${isPartial ? `
+                                <button onclick="window.updateTaskStatus('${t.id}', 'pending')" class="w-8 h-8 rounded-full bg-amber-400 text-white flex items-center justify-center shadow-md animate-pulse active:scale-90" title="Volver a Pendiente">
+                                    <i class="fas fa-undo"></i>
+                                </button>
+                            ` : ''}
+                            ${(isDone && !t.cycle) ? `<button onclick="window.delTask('${t.id}')" class="text-red-300 hover:text-red-500 mt-auto"><i class="fas fa-trash"></i></button>` : ''}
+                        </div>
+                    `;
 
                     div.innerHTML = `
                         <div class="flex-grow">
                             <div class="flex items-center gap-2 mb-1">
                                 <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">${prioText[t.priority] || 'NORMAL'}</span>
                                 ${cycleLabel}
+                                ${isPartial ? '<span class="text-[10px] bg-amber-100 text-amber-600 px-2 rounded-full font-bold">INCOMPLETO</span>' : ''}
                             </div>
                             <h3 class="text-slate-800 font-medium leading-tight ${isDone ? 'line-through text-slate-400' : ''}">${t.text}</h3>
                             <div class="flex items-center justify-between mt-2">
@@ -529,11 +627,7 @@
                                 <button onclick='window.editTask(${JSON.stringify(t)})' class="text-slate-300 hover:text-slate-500 px-2"><i class="fas fa-ellipsis-h"></i></button>
                             </div>
                         </div>
-                        <div class="flex flex-col items-center gap-2 pt-1 border-l border-slate-100 pl-3">
-                            ${statusBtn}
-                            ${!isDone && !isPartial ? `<button onclick="window.updateTaskStatus('${t.id}', 'partial')" class="text-xs text-amber-400 font-bold">1/2</button>` : ''}
-                            ${isDone && !t.cycle ? `<button onclick="window.delTask('${t.id}')" class="text-red-300 hover:text-red-500 mt-auto"><i class="fas fa-trash"></i></button>` : ''}
-                        </div>
+                        ${buttons}
                     `;
                     list.appendChild(div);
                 });
@@ -548,8 +642,7 @@
                 const list = document.getElementById('ordersList');
                 list.innerHTML = '';
                 const pending = orders.filter(o => o.status !== 'received').length;
-                const badge = document.getElementById('badgeOrders');
-                badge.classList.toggle('hidden', pending === 0);
+                document.getElementById('badgeOrders').classList.toggle('hidden', pending === 0);
 
                 if(orders.length === 0) { list.innerHTML = this.emptyState('shopping-basket', 'Sin pedidos pendientes'); return; }
 
@@ -565,14 +658,26 @@
                     else if(isOrdered) statusBadge = '<span class="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded font-bold">COMPRADO</span>';
                     else statusBadge = '<span class="bg-slate-100 text-slate-500 text-xs px-2 py-1 rounded font-bold">PENDIENTE</span>';
 
+                    // Parse items: support both new array format and old string format
+                    let itemsHtml = '';
+                    if (Array.isArray(o.items)) {
+                        itemsHtml = `<div class="bg-slate-50 rounded-lg overflow-hidden my-2 border border-slate-100">
+                            ${o.items.map(i => `<div class="flex justify-between p-2 border-b border-slate-100 last:border-0 text-sm"><span class="font-medium text-slate-700">${i.item}</span><span class="text-slate-500">x${i.amount}</span></div>`).join('')}
+                        </div>`;
+                    } else {
+                        // Fallback for old single items
+                        itemsHtml = `<div class="mb-2"><span class="font-bold text-lg text-slate-800">${o.item}</span> <span class="text-sm text-slate-500">x${o.amount}</span></div>`;
+                    }
+
                     div.innerHTML = `
-                        <div class="flex justify-between items-start mb-2">
-                            <h3 class="font-bold text-lg text-slate-800">${o.item} <span class="text-sm font-normal text-slate-500">x${o.amount}</span></h3>
+                        <div class="flex justify-between items-center mb-2">
+                             <span class="text-xs font-bold text-slate-400 uppercase">Pedido</span>
                             ${statusBadge}
                         </div>
-                        ${o.notes ? `<p class="text-sm text-slate-600 italic bg-slate-50 p-2 rounded mb-2">${o.notes}</p>` : ''}
-                        <div class="flex justify-between items-center text-xs text-slate-400 mt-2">
-                            <span>Solicitado por: <strong>${o.requester}</strong> (${o.branch})</span>
+                        ${itemsHtml}
+                        ${o.notes ? `<p class="text-xs text-slate-500 italic mb-2"><i class="fas fa-comment-alt mr-1"></i>${o.notes}</p>` : ''}
+                        <div class="flex justify-between items-center text-xs text-slate-400 mt-2 border-t border-slate-100 pt-2">
+                            <span>Por: <strong>${o.requester}</strong> (${o.branch})</span>
                             <div class="flex gap-2">
                                 ${!isReceived ? `<button onclick="window.advanceOrder('${o.id}', '${o.status}')" class="text-blue-600 font-bold hover:underline">AVANZAR</button>` : ''}
                                 <button onclick="window.delShared('orders', '${o.id}')" class="text-red-400"><i class="fas fa-trash"></i></button>
@@ -620,8 +725,11 @@
                         <div class="bg-slate-50 border-t border-slate-100 p-2 flex justify-between items-center">
                             <button onclick="window.delShared('deliveries', '${d.id}')" class="text-xs text-red-400 px-2">ELIMINAR</button>
                             <div class="flex gap-2">
-                                <button onclick="window.updateDelStatus('${d.id}', 'incomplete')" class="px-3 py-1 bg-orange-100 text-orange-600 rounded text-xs font-bold">Incompleto</button>
-                                <button onclick="window.updateDelStatus('${d.id}', 'delivered')" class="px-3 py-1 bg-emerald-100 text-emerald-600 rounded text-xs font-bold">Entregado</button>
+                                ${(isDone || isIncomplete) ? 
+                                    `<button onclick="window.updateDelStatus('${d.id}', 'pending')" class="px-3 py-1 bg-slate-200 text-slate-600 rounded text-xs font-bold" title="Volver a Pendiente"><i class="fas fa-undo"></i></button>` 
+                                    : ''}
+                                ${d.status !== 'incomplete' ? `<button onclick="window.updateDelStatus('${d.id}', 'incomplete')" class="px-3 py-1 bg-orange-100 text-orange-600 rounded text-xs font-bold">Incompleto</button>` : ''}
+                                ${d.status !== 'delivered' ? `<button onclick="window.updateDelStatus('${d.id}', 'delivered')" class="px-3 py-1 bg-emerald-100 text-emerald-600 rounded text-xs font-bold">Entregado</button>` : ''}
                             </div>
                         </div>
                     `;
@@ -638,17 +746,52 @@
                     div.className = `p-4 rounded-xl shadow-sm border relative ${isMoney ? 'bg-amber-50 border-amber-200' : 'bg-yellow-50 border-yellow-200'}`;
                     div.innerHTML = `
                         ${isMoney ? '<span class="absolute -top-2 left-4 bg-amber-500 text-white text-[10px] px-2 rounded">COBRAR</span>' : ''}
-                        <p class="whitespace-pre-wrap font-handwriting text-lg text-slate-800 leading-relaxed">${n.content}</p>
+                        <p class="whitespace-pre-wrap text-slate-800 leading-relaxed font-sans">${n.content}</p>
                         <button onclick="window.delItem('notes', '${n.id}')" class="absolute top-2 right-2 text-slate-300 hover:text-red-500"><i class="fas fa-times"></i></button>
                     `;
                     list.appendChild(div);
                 });
             },
             
+            renderScripts(scripts) {
+                const list = document.getElementById('scriptsList');
+                list.innerHTML = '';
+                
+                if(scripts.length === 0) { list.innerHTML = this.emptyState('comment-dots', 'Sin scripts de venta'); return; }
+
+                scripts.forEach(s => {
+                    const div = document.createElement('div');
+                    div.className = "bg-white rounded-xl shadow-sm border border-purple-100 p-4";
+                    // Using a hidden element for cleaner copying logic if needed, but navigator.clipboard uses direct string
+                    // Escaping content for attribute safety is good practice, but simpler here
+                    div.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-bold text-slate-800 text-lg">${s.title}</h3>
+                            <button onclick="window.delShared('scripts', '${s.id}')" class="text-slate-300 hover:text-red-400"><i class="fas fa-trash"></i></button>
+                        </div>
+                        <div class="bg-slate-50 p-3 rounded-lg text-sm text-slate-600 mb-3 font-mono leading-relaxed border border-slate-100">
+                            ${s.content}
+                        </div>
+                        <button onclick="window.copyScript('${s.content.replace(/'/g, "\\'")}')" class="w-full py-2 bg-purple-100 text-purple-700 font-bold rounded-lg hover:bg-purple-200 transition flex items-center justify-center gap-2 active:scale-95">
+                            <i class="far fa-copy"></i> Copiar
+                        </button>
+                    `;
+                    list.appendChild(div);
+                });
+            },
+
             renderProcedures(procs) {
                 const list = document.getElementById('proceduresList');
                 list.innerHTML = '';
-                const colors = { blue: 'bg-blue-50 border-blue-200 text-blue-900', green: 'bg-emerald-50 border-emerald-200 text-emerald-900', red: 'bg-red-50 border-red-200 text-red-900', purple: 'bg-purple-50 border-purple-200 text-purple-900' };
+                const colors = { 
+                    blue: 'bg-blue-50 border-blue-200 text-blue-900', 
+                    green: 'bg-emerald-50 border-emerald-200 text-emerald-900', 
+                    red: 'bg-red-50 border-red-200 text-red-900', 
+                    purple: 'bg-purple-50 border-purple-200 text-purple-900',
+                    pink: 'bg-pink-50 border-pink-200 text-pink-900',
+                    teal: 'bg-teal-50 border-teal-200 text-teal-900',
+                    slate: 'bg-slate-100 border-slate-300 text-slate-800'
+                };
                 
                 procs.forEach(p => {
                     const style = colors[p.color] || colors.blue;
@@ -677,37 +820,32 @@
                     if(m.type === 'image') content = `<img src="${m.url}" class="rounded-lg max-h-48 w-full object-cover" onclick="window.open(this.src)">`;
                     
                     const time = m.createdAt ? new Date(m.createdAt.seconds*1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '...';
-                    
-                    div.innerHTML = `${content}<div class="text-[10px] text-right mt-1 opacity-50">${time}</div>`;
+                    const author = (!isMe && m.author) ? `<div class="text-[10px] font-bold opacity-60 mb-1 text-emerald-600">${m.author}</div>` : '';
+
+                    div.innerHTML = `${author}${content}<div class="text-[10px] text-right mt-1 opacity-50">${time}</div>`;
                     list.appendChild(div);
                 });
-                // Only scroll if near bottom or first load (simplified here to always scroll for demo)
-                // this.scrollToBottom('chatList'); 
             },
 
             emptyState(icon, text) {
                 return `<div class="flex flex-col items-center justify-center py-10 opacity-40 gap-3"><i class="fas fa-${icon} text-4xl"></i><p>${text}</p></div>`;
             }
         };
-        window.UI = UI; // Expose to global scope for HTML event handlers
+        window.UI = UI;
 
         // DATA MANAGER
         const Data = {
-            // FIX: STRICT PATHS FOR RULES
             getCol(name) { return collection(db, 'artifacts', APP_ID, 'public', 'data', name); },
 
             resubscribe() {
-                // Unsubscribe existing
                 Object.values(State.listeners).forEach(u => u && u());
 
-                // Tasks - CLIENT SIDE FILTERING TO AVOID INDEX ERRORS
                 State.listeners.tasks = onSnapshot(this.getCol('tasks'), (snap) => {
                     const tasks = []; 
                     snap.forEach(d => {
                         const data = d.data();
                         if (data.branch === State.branch) tasks.push({id: d.id, ...data});
                     });
-                    // Client sort
                     const pVal = {critical:0, high:1, medium:2, low:3};
                     tasks.sort((a,b) => {
                         if(pVal[a.priority] !== pVal[b.priority]) return pVal[a.priority] - pVal[b.priority];
@@ -716,7 +854,6 @@
                     UI.renderTasks(tasks);
                 });
 
-                // Notes
                 State.listeners.notes = onSnapshot(this.getCol('notes'), (snap) => {
                     const items = []; 
                     snap.forEach(d => {
@@ -726,7 +863,6 @@
                     UI.renderNotes(items.sort((a,b) => (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)));
                 });
 
-                // Chat
                 State.listeners.chat = onSnapshot(this.getCol('chat'), (snap) => {
                     const items = []; 
                     snap.forEach(d => {
@@ -738,19 +874,22 @@
                     UI.scrollToBottom('chatList');
                 });
 
-                // Shared: Deliveries
                 State.listeners.delivery = onSnapshot(this.getCol('deliveries'), (snap) => {
                     const items = []; snap.forEach(d => items.push({id: d.id, ...d.data()}));
                     UI.renderDeliveries(items.sort((a,b) => (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)));
                 });
 
-                // Shared: Procedures
                 State.listeners.procedures = onSnapshot(this.getCol('procedures'), (snap) => {
                     const items = []; snap.forEach(d => items.push({id: d.id, ...d.data()}));
                     UI.renderProcedures(items.sort((a,b) => (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)));
                 });
 
-                // Shared: Orders
+                // Shared: Scripts
+                State.listeners.scripts = onSnapshot(this.getCol('scripts'), (snap) => {
+                    const items = []; snap.forEach(d => items.push({id: d.id, ...d.data()}));
+                    UI.renderScripts(items.sort((a,b) => (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)));
+                });
+
                 State.listeners.orders = onSnapshot(this.getCol('orders'), (snap) => {
                     const items = []; snap.forEach(d => items.push({id: d.id, ...d.data()}));
                     UI.renderOrders(items.sort((a,b) => (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)));
@@ -775,6 +914,30 @@
             await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'orders', id), { status: next });
         };
 
+        window.copyScript = (text) => {
+            // Using modern API but providing fallback if iframe blocks
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(() => UI.toast("¡Copiado!", "success")).catch(() => {
+                    // Fallback
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    UI.toast("¡Copiado!", "success");
+                });
+            } else {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                UI.toast("¡Copiado!", "success");
+            }
+        };
+
         window.handleChatImage = async (input) => {
             const file = input.files[0];
             if(!file) return;
@@ -784,7 +947,7 @@
                 const snap = await uploadBytes(storageRef, file);
                 const url = await getDownloadURL(snap.ref);
                 await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'chat'), { 
-                    type: 'image', url, sender: State.user.uid, 
+                    type: 'image', url, sender: State.user.uid, author: State.username,
                     branch: State.branch,
                     createdAt: serverTimestamp() 
                 });
@@ -792,8 +955,21 @@
             } catch(e) { UI.toast('Error subida', 'error'); }
             input.value = '';
         };
+        
+        // Orders Logic
+        window.addOrderRow = () => {
+            const container = document.getElementById('orderItemsContainer');
+            const row = document.createElement('div');
+            row.className = 'flex gap-2 mb-2 order-row';
+            row.innerHTML = `
+                <input type="text" class="order-item w-[70%] p-2 bg-slate-50 rounded-lg border border-slate-200 text-sm outline-none" placeholder="Item">
+                <input type="text" class="order-amount w-[20%] p-2 bg-slate-50 rounded-lg border border-slate-200 text-sm outline-none" placeholder="#">
+                <button onclick="this.parentElement.remove()" class="w-[10%] text-red-400 hover:text-red-600"><i class="fas fa-times"></i></button>
+            `;
+            container.appendChild(row);
+        };
 
-        // EVENT BINDINGS FOR SAVING
+        // SAVE ACTIONS
         document.getElementById('saveTaskBtn').onclick = async () => {
             const id = document.getElementById('taskId').value;
             const text = document.getElementById('taskInput').value.trim();
@@ -820,19 +996,26 @@
         };
 
         document.getElementById('saveOrderBtn').onclick = async () => {
-             const item = document.getElementById('orderItem').value;
-             if(!item) return;
+             // Gather items
+             const rows = document.querySelectorAll('.order-row');
+             const items = [];
+             rows.forEach(r => {
+                 const item = r.querySelector('.order-item').value.trim();
+                 const amount = r.querySelector('.order-amount').value.trim();
+                 if(item) items.push({item, amount});
+             });
+
+             if(items.length === 0) return UI.toast('Agrega al menos un item', 'error');
              UI.closeModal();
+
              await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'orders'), {
-                 item,
-                 amount: document.getElementById('orderAmount').value,
+                 items: items, // Save array
                  requester: document.getElementById('orderRequester').value,
                  notes: document.getElementById('orderNotes').value,
                  branch: State.branch === 'centro' ? 'Centro' : 'Ejemplares',
                  status: 'pending',
                  createdAt: serverTimestamp()
              });
-             document.getElementById('orderItem').value = '';
              UI.toast('Pedido enviado', 'success');
         };
 
@@ -878,13 +1061,24 @@
             document.getElementById('procSteps').value = '';
         };
 
+        document.getElementById('saveScriptBtn').onclick = async () => {
+            const title = document.getElementById('scriptTitle').value.trim();
+            const content = document.getElementById('scriptContent').value.trim();
+            if(!title || !content) return UI.toast('Faltan datos', 'error');
+            UI.closeModal();
+            await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'scripts'), {
+                title, content, createdAt: serverTimestamp()
+            });
+            UI.toast('Script guardado', 'success');
+        };
+
         document.getElementById('sendChatBtn').onclick = async () => {
             const input = document.getElementById('chatTextInput');
             const text = input.value.trim();
             if(!text) return;
             input.value = '';
             await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'chat'), { 
-                type: 'text', text, sender: State.user.uid, 
+                type: 'text', text, sender: State.user.uid, author: State.username,
                 branch: State.branch,
                 createdAt: serverTimestamp() 
             });
@@ -897,10 +1091,9 @@
             
             if (user) {
                 State.user = user;
-                ind.innerText = "Conectado · " + user.uid.slice(0,4);
+                ind.innerText = "Conectado";
                 loading.classList.remove('hidden');
                 Data.resubscribe();
-                // Fake loading delay removal
                 setTimeout(() => loading.classList.add('hidden'), 1000);
             } else {
                 ind.innerText = "Desconectado";
